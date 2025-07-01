@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Virtual environment
+api/venv/
+
+# ChromaDB storage
+api/chroma_store/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment variables
+.env
+
+# Logs
+*.log
+
+# Node modules (if you add any frontend later)
+node_modules/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
