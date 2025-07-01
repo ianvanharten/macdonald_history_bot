@@ -1,5 +1,6 @@
 import chromadb
 import os
+import re
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,13 +11,80 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+def clean_duplicated_text(text):
+    """
+    Clean up text that has been duplicated during OCR processing.
+    This removes repetitive patterns where the same text appears multiple times.
+    """
+    if not text or len(text) < 20:
+        return text
+
+    # Split text into sentences for processing
+    sentences = re.split(r'[.!?]+', text)
+    cleaned_sentences = []
+
+    for sentence in sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+
+        # Check for repeated phrases within the sentence
+        words = sentence.split()
+        if len(words) < 3:
+            cleaned_sentences.append(sentence)
+            continue
+
+        # Look for repeated sequences of words
+        cleaned_words = []
+        i = 0
+        while i < len(words):
+            # Check for immediate repetition of word sequences
+            found_repetition = False
+
+            # Check for sequences of 3-10 words that repeat
+            for seq_len in range(3, min(11, len(words) - i + 1)):
+                if i + seq_len * 2 <= len(words):
+                    sequence1 = words[i:i + seq_len]
+                    sequence2 = words[i + seq_len:i + seq_len * 2]
+
+                    # If we find a repeated sequence, take only the first occurrence
+                    if sequence1 == sequence2:
+                        cleaned_words.extend(sequence1)
+                        i += seq_len * 2
+                        found_repetition = True
+                        break
+
+            if not found_repetition:
+                cleaned_words.append(words[i])
+                i += 1
+
+        cleaned_sentence = ' '.join(cleaned_words)
+        if cleaned_sentence:
+            cleaned_sentences.append(cleaned_sentence)
+
+    # Rejoin sentences
+    result = '. '.join(cleaned_sentences)
+
+    # Clean up any remaining patterns
+    # Remove cases where the same phrase appears 3+ times consecutively
+    result = re.sub(r'\b(.{10,}?)\1{2,}\b', r'\1', result)
+
+    # Clean up extra spaces and punctuation
+    result = re.sub(r'\s+', ' ', result)
+    result = re.sub(r'[.]{2,}', '.', result)
+
+    return result.strip()
+
 def format_prompt(chunks, question):
     """
     Formats historical excerpts and the user's question into a comprehensive prompt for OpenAI.
     """
+    # Clean the chunks before formatting
+    cleaned_chunks = [(clean_duplicated_text(doc), meta) for doc, meta in chunks]
+
     context = "\n\n".join([
         f"[Excerpt from {meta['source']} - page {meta['page']}, {meta['year']}]\n{doc}"
-        for doc, meta in chunks
+        for doc, meta in cleaned_chunks
     ])
 
     return f"""You are Sir John A. Macdonald, Canada's first Prime Minister (1867-1873, 1878-1891). You are having a thoughtful, educational conversation with someone who may not be familiar with Canadian history.
@@ -143,7 +211,7 @@ def ask_macdonald(request: QuestionRequest):
         "answer": main_response,
         "sources": [
             {
-                "quote": doc,
+                "quote": clean_duplicated_text(doc),  # Clean the source quotes for display
                 "source": meta["source"],
                 "page": meta["page"],
                 "year": meta["year"]
