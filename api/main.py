@@ -1,46 +1,72 @@
 import chromadb
-import ollama
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
+from openai import OpenAI
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 def format_prompt(chunks, question):
     """
-    Formats historical excerpts and the user's question into a prompt for Gemma.
+    Formats historical excerpts and the user's question into a comprehensive prompt for OpenAI.
     """
     context = "\n\n".join([
         f"[Excerpt from {meta['source']} - page {meta['page']}, {meta['year']}]\n{doc}"
         for doc, meta in chunks
     ])
 
-    return f"""
-You are Sir John A. Macdonald, Canada's first Prime Minister. Speak in the first person, as if you are personally answering the user's question.
+    return f"""You are Sir John A. Macdonald, Canada's first Prime Minister (1867-1873, 1878-1891). You are having a thoughtful, educational conversation with someone who may not be familiar with Canadian history.
 
-Your task is to respond to the user's question in a way that is:
-- Faithful to your historical views, tone, and character
-- Understandable and educational for a modern audience
-- Grounded only in the provided historical excerpts
-- Supported with quotes directly from those excerpts, when appropriate
-- Enriched with brief historical context when referencing people, events, or ideas that modern readers may not be familiar with
+IMPORTANT: Provide comprehensive, detailed responses that fully address the user's question. Your responses should be substantive and educational, typically 300-500 words or more when appropriate.
 
-Avoid speculation or modern references. Do not include information not found in the excerpts below.
-You must always speak in the **first person**, referring to yourself as "I", and never in the third person (do not say "Sir John A. Macdonald" or "he"). Maintain the tone of a thoughtful 19th-century statesman.
-Use a formal tone consistent with 19th-century speech, but ensure your answer is clear and informative for present-day readers.
-At the end of your answer, suggest 1 or 2 thoughtful follow-up questions the user might ask next, based on the topic you discussed. Format these clearly, such as in a bulleted list.
+Your task is to respond in a way that is:
+- **Comprehensive and educational**: Give thorough explanations with sufficient historical context
+- **Accessible**: Explain people, events, and concepts that modern readers may not know
+- **Grounded in historical evidence**: Use the provided excerpts as your foundation
+- **Personal and engaging**: Speak in first person as if sharing your experiences and perspectives
+- **Authentic to your era**: Use formal 19th-century language while remaining clear
 
-Historical excerpts:
+**Response Structure Guidelines:**
+1. **Opening**: Acknowledge the question and set the historical context
+2. **Main content**: Provide detailed explanation with background information
+3. **Historical context**: Explain relevant people, events, and circumstances
+4. **Personal perspective**: Share your views and experiences from that time
+5. **Supporting evidence**: Reference specific excerpts when relevant
+6. **Conclusion**: Summarize key points and their significance
+
+**Key Instructions:**
+- Always speak in first person ("I", "my", "we") - never refer to yourself in third person
+- Explain historical figures, events, and concepts that modern readers might not know
+- Provide dates, locations, and context to help readers understand the timeline
+- Use quotes from the historical excerpts to support your points
+- Maintain the dignity and formal speech patterns of a 19th-century statesman
+- Be educational - assume your audience wants to learn about Canadian history
+
+At the end of your response, suggest 2-3 thoughtful follow-up questions that would help the user explore related topics. Format these as:
+
+**Follow-up questions you might consider:**
+- [Question 1]
+- [Question 2]
+- [Question 3]
+
+Historical excerpts for reference:
 {context}
 
-User's question:
-{question}
-"""
+User's question: {question}
 
+Remember: Provide a comprehensive, educational response that gives the user a thorough understanding of the topic, including necessary historical context."""
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Load embedding model (same one used for indexing)
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Load ChromaDB collection - Updated to new API
+# Load ChromaDB collection
 chroma_client = chromadb.PersistentClient(path="./chroma_store")
 collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
@@ -66,53 +92,66 @@ def read_root():
 def ask_macdonald(request: QuestionRequest):
     question_embedding = embedder.encode(request.question).tolist()
 
+    # Increase results to get more historical context
     results = collection.query(
         query_embeddings=[question_embedding],
-        n_results=3
+        n_results=5  # Increased from 3 to 5 for more context
     )
 
     chunks = list(zip(results["documents"][0], results["metadatas"][0]))
     prompt = format_prompt(chunks, request.question)
 
-    response = ollama.chat(
-        model="llama3.2:1b",  # or "tinyllama" if you want to swap
+    # Use OpenAI with better parameters for comprehensive responses
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",  # Consider upgrading to "gpt-4" for even better quality
         messages=[
-            {"role": "system", "content": "You are Sir John A. Macdonald, speaking in formal 19th-century Canadian English."},
+            {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging."},
             {"role": "user", "content": prompt}
-        ]
+        ],
+        temperature=0.8,  # Slightly higher for more engaging responses
+        max_tokens=1500,  # Significantly increased for comprehensive answers
+        presence_penalty=0.1,  # Encourage diverse vocabulary
+        frequency_penalty=0.1   # Reduce repetition
     )
 
-    answer = response["message"]["content"]
+    answer = response.choices[0].message.content
 
-    # Try to split off the follow-up suggestions
-    answer_parts = answer.strip().split("\n\n")
+    # Improved parsing for follow-up questions
+    answer_parts = answer.strip().split("**Follow-up questions")
     main_response = answer_parts[0].strip()
     follow_ups = []
 
-    for part in answer_parts[1:]:
-        if "follow-up" in part.lower() or "-" in part or "?" in part:
-            follow_ups = [
-                line.strip("–-•* ").strip()
-                for line in part.strip().splitlines()
-                if "?" in line
-            ]
-            break
+    if len(answer_parts) > 1:
+        follow_up_section = answer_parts[1]
+        # Extract questions from the follow-up section
+        lines = follow_up_section.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.startswith('-') and '?' in line:
+                follow_ups.append(line.strip('- ').strip())
 
+    # Fallback: look for questions in the entire response
+    if not follow_ups:
+        for part in answer.split('\n'):
+            if '?' in part and ('follow' in part.lower() or part.strip().startswith('-')):
+                clean_line = part.strip('–-•* ').strip()
+                if clean_line and '?' in clean_line:
+                    follow_ups.append(clean_line)
 
     return {
-    "question": request.question,
-    "answer": main_response,
-    "sources": [
-      {
-          "quote": doc,
-          "source": meta["source"],
-          "page": meta["page"],
-          "year": meta["year"]
-      }
-      for doc, meta in zip(results["documents"][0], results["metadatas"][0])
-    ],
-    "follow_ups": follow_ups
-}
+        "question": request.question,
+        "answer": main_response,
+        "sources": [
+            {
+                "quote": doc,
+                "source": meta["source"],
+                "page": meta["page"],
+                "year": meta["year"]
+            }
+            for doc, meta in zip(results["documents"][0], results["metadatas"][0])
+        ],
+        "follow_ups": follow_ups[:3]  # Limit to 3 follow-ups
+    }
 
 
 
