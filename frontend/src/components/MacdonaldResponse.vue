@@ -1,6 +1,6 @@
 <template>
-  <div class="macdonald-response">
-    <transition name="fade" appear>
+  <div class="macdonald-response" ref="responseContainer">
+    <transition name="slide-fade" appear>
       <div v-if="!isLoading" class="response-journal">
         <div class="journal-header">
           <div class="date-line">{{ formattedDate }}</div>
@@ -13,7 +13,9 @@
           </div>
 
           <div class="response-text">
-            {{ response.answer }}
+            <p v-for="(paragraph, index) in formattedParagraphs" :key="index" class="paragraph">
+              {{ paragraph }}
+            </p>
           </div>
 
           <div class="signature">
@@ -30,9 +32,9 @@
 
     <div v-if="isLoading" class="loading-state">
       <div class="loading-journal">
-        <div class="loading-text">
+        <div class="loading-content">
           <div class="thinking-dots">
-            <span>Sir John is reflecting</span>
+            <span>Sir John is carefully composing his response</span>
             <span class="dots">
               <span>.</span>
               <span>.</span>
@@ -60,7 +62,7 @@ export default {
       default: false
     }
   },
-  setup() {
+  setup(props) {
     const formattedDate = computed(() => {
       const now = new Date()
       return now.toLocaleDateString('en-GB', {
@@ -70,8 +72,52 @@ export default {
       })
     })
 
+    const formattedParagraphs = computed(() => {
+      if (!props.response || !props.response.answer) return []
+
+      // Split on double line breaks first (standard paragraph breaks)
+      let paragraphs = props.response.answer.split('\n\n')
+
+      // If no double line breaks, try splitting on single line breaks
+      if (paragraphs.length === 1) {
+        paragraphs = props.response.answer.split('\n')
+      }
+
+      // If still one paragraph, try to split on sentence patterns for very long text
+      if (paragraphs.length === 1 && paragraphs[0].length > 500) {
+        // Split on periods followed by capital letters (new sentences that might be new thoughts)
+        const text = paragraphs[0]
+        const sentences = text.split(/\. (?=[A-Z])/)
+
+        // Group sentences into paragraphs of reasonable length
+        paragraphs = []
+        let currentParagraph = ''
+
+        sentences.forEach((sentence, index) => {
+          if (index < sentences.length - 1) sentence += '.'
+
+          if (currentParagraph.length + sentence.length > 400 && currentParagraph.length > 0) {
+            paragraphs.push(currentParagraph.trim())
+            currentParagraph = sentence + ' '
+          } else {
+            currentParagraph += sentence + ' '
+          }
+        })
+
+        if (currentParagraph.trim()) {
+          paragraphs.push(currentParagraph.trim())
+        }
+      }
+
+      // Clean up paragraphs and filter out empty ones
+      return paragraphs
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+    })
+
     return {
-      formattedDate
+      formattedDate,
+      formattedParagraphs
     }
   }
 }
@@ -152,7 +198,15 @@ export default {
   color: #1a1a1a;
   text-align: justify;
   margin-bottom: 2rem;
+}
+
+.paragraph {
+  margin-bottom: 1.5rem;
   text-indent: 2rem;
+}
+
+.paragraph:last-child {
+  margin-bottom: 0;
 }
 
 .signature {
@@ -179,17 +233,29 @@ export default {
   text-align: center;
 }
 
+/* Simplified Loading State */
 .loading-state {
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 4rem;
+  min-height: 200px;
 }
 
 .loading-journal {
   background: #fefefe;
-  padding: 4rem;
+  padding: 3rem;
   text-align: center;
+  border: 2px solid #f0f0f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .thinking-dots {
@@ -197,10 +263,14 @@ export default {
   font-size: 1.3rem;
   color: #666;
   font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .dots span {
   animation: dots 1.5s infinite;
+  font-weight: bold;
 }
 
 .dots span:nth-child(1) {
@@ -217,35 +287,34 @@ export default {
 
 @keyframes dots {
   0%, 60%, 100% {
-    opacity: 0;
+    opacity: 0.3;
+    transform: scale(1);
   }
   30% {
     opacity: 1;
+    transform: scale(1.2);
   }
 }
 
-.fade-enter-active {
-  transition: all 0.8s ease;
+/* Enhanced Fade Animation */
+.slide-fade-enter-active {
+  transition: all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.fade-enter-from {
+.slide-fade-enter-from {
   opacity: 0;
-  transform: translateY(20px);
+  transform: translateY(30px) scale(0.98);
 }
 
-.fade-enter-to {
+.slide-fade-enter-to {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
 }
 
 @media (max-width: 768px) {
   .response-journal {
     padding: 2rem;
     margin: 1rem -10px;
-  }
-
-  .response-journal::before {
-    transform: translate(2px, 2px);
   }
 
   .question-reference {
@@ -255,7 +324,11 @@ export default {
   .response-text {
     font-size: 1.25rem;
     line-height: 1.7;
+  }
+
+  .paragraph {
     text-indent: 1rem;
+    margin-bottom: 1.25rem;
   }
 
   .signature-name {
@@ -265,6 +338,13 @@ export default {
   .loading-journal {
     padding: 2rem;
     margin: 0 -10px;
+  }
+
+  .thinking-dots {
+    font-size: 1.1rem;
+    flex-direction: column;
+    text-align: center;
+    gap: 0.5rem;
   }
 }
 
@@ -277,6 +357,10 @@ export default {
   .response-text {
     font-size: 1.2rem;
     text-align: left;
+  }
+
+  .paragraph {
+    text-indent: 0.5rem;
   }
 }
 </style>

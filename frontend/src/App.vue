@@ -16,19 +16,19 @@
           :current-question="currentQuestion"
         />
 
-        <div v-if="response" class="response-section">
+        <div v-if="response || isLoading" class="response-section" ref="responseSection">
           <MacdonaldResponse
             :response="response"
             :is-loading="isLoading"
           />
 
           <SourceQuotes
-            v-if="response.sources && response.sources.length > 0"
+            v-if="response && response.sources && response.sources.length > 0"
             :sources="response.sources"
           />
 
           <FollowUpSuggestions
-            v-if="response.follow_ups && response.follow_ups.length > 0"
+            v-if="response && response.follow_ups && response.follow_ups.length > 0"
             :suggestions="response.follow_ups"
             @suggestion-clicked="handleSuggestionClicked"
           />
@@ -47,7 +47,7 @@
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import axios from 'axios'
 import QuestionInput from './components/QuestionInput.vue'
 import MacdonaldResponse from './components/MacdonaldResponse.vue'
@@ -67,6 +67,17 @@ export default {
     const response = ref(null)
     const isLoading = ref(false)
     const error = ref('')
+    const responseSection = ref(null)
+
+    const scrollToResponse = () => {
+      if (responseSection.value) {
+        responseSection.value.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+          inline: 'nearest'
+        })
+      }
+    }
 
     const handleQuestionSubmitted = async (question) => {
       currentQuestion.value = question
@@ -74,12 +85,25 @@ export default {
       error.value = ''
       response.value = null
 
+      // Scroll to loading state after a brief delay
+      await nextTick()
+      setTimeout(() => {
+        scrollToResponse()
+      }, 100)
+
       try {
         const result = await axios.post('http://localhost:8000/ask', {
           question: question
         })
 
         response.value = result.data
+
+        // Scroll to response after it loads
+        await nextTick()
+        setTimeout(() => {
+          scrollToResponse()
+        }, 200) // Small delay to allow fade animation to start
+
       } catch (err) {
         error.value = 'I apologize, but I am unable to respond at this moment. Please ensure the server is running and try again.'
         console.error('API Error:', err)
@@ -97,6 +121,7 @@ export default {
       response,
       isLoading,
       error,
+      responseSection,
       handleQuestionSubmitted,
       handleSuggestionClicked
     }
@@ -164,6 +189,7 @@ export default {
 
 .response-section {
   margin-top: 2rem;
+  scroll-margin-top: 2rem; /* Adds space above when scrolled to */
 }
 
 .error-message {
@@ -194,7 +220,7 @@ export default {
     padding: 1.5rem 0;
   }
 
-      .title {
+  .title {
     font-size: 2.5rem;
   }
 
