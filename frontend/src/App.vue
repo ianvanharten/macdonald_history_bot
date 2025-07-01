@@ -1,8 +1,11 @@
 <template>
   <div class="app">
     <header class="header">
-      <h1 class="title">Sir John A. Macdonald</h1>
-      <p class="subtitle">Canada's First Prime Minister • Historical Conversations</p>
+      <h1 class="title">Ask Sir John A. MacDonald</h1>
+      <div class="header-image">
+        <img src="/john-a-comic.png" alt="Sir John A. Macdonald" class="portrait" />
+      </div>
+      <p class="subtitle">Step into history and have a conversation with Canada's first Prime Minister. Ask Sir John A. MacDonald about Confederation, his political career, or the challenges of building a new nation. His responses are grounded in authentic historical documents and speeches from the 19th century.</p>
     </header>
 
     <main class="main-content">
@@ -113,22 +116,39 @@ export default {
 
 .header {
   text-align: center;
-  padding: 3rem 0 4rem 0;
-  margin-bottom: 3rem;
+  padding: 2rem 0 1rem 0;
+  margin-bottom: 0.5rem;
 }
 
 .title {
-  font-family: 'EB Garamond', serif;
-  font-size: clamp(2.5rem, 4vw, 3.5rem);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: clamp(3rem, 4.5vw, 4.2rem);
   font-weight: 600;
   color: #1a1a1a;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
   letter-spacing: 0.5px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.header-image {
+  margin: 1.5rem 0;
+  text-align: center;
+}
+
+.portrait {
+  max-width: 200px;
+  height: auto;
 }
 
 .subtitle {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   color: #666;
+  line-height: 1.6;
+  margin-top: 1.5rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
   font-style: italic;
 }
 
@@ -174,12 +194,18 @@ export default {
     padding: 1.5rem 0;
   }
 
-  .title {
-    font-size: 2.2rem;
+      .title {
+    font-size: 2.5rem;
+  }
+
+  .portrait {
+    max-width: 150px;
   }
 
   .subtitle {
     font-size: 1rem;
+    max-width: 90%;
+    padding: 0 1rem;
   }
 }
 </style>

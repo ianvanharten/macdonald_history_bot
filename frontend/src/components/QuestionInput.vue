@@ -1,16 +1,11 @@
 <template>
-  <div class="question-input">
-    <div class="input-header">
-      <h2>Ask Sir John A. Macdonald</h2>
-      <p>What would you like to know about Canada's Confederation or my time as Prime Minister?</p>
-    </div>
-
+    <div class="question-input">
     <form @submit.prevent="submitQuestion" class="question-form">
       <div class="input-group">
         <textarea
           v-model="question"
           @keydown.enter.prevent="handleEnterKey"
-          placeholder="Enter your question here..."
+          placeholder="What would you like to know about Canada's Confederation or my time as Prime Minister?"
           class="question-textarea"
           rows="3"
           :disabled="isLoading"
@@ -80,29 +75,11 @@ export default {
 
 <style scoped>
 .question-input {
-  background: #f8f8f8;
-  padding: 3rem;
-  margin: 2rem 0;
+  padding: 1rem 0;
+  margin: 0.5rem 0;
 }
 
-.input-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
 
-.input-header h2 {
-  font-family: 'EB Garamond', serif;
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  margin-bottom: 0.5rem;
-}
-
-.input-header p {
-  font-size: 1.1rem;
-  color: #666;
-  font-style: italic;
-}
 
 .question-form {
   width: 100%;
@@ -118,7 +95,7 @@ export default {
   width: 100%;
   padding: 1.5rem;
   border: none;
-  background: #fff;
+  background: #f0f8ff;
   font-family: 'Crimson Text', serif;
   font-size: 1.1rem;
   line-height: 1.6;
@@ -126,6 +103,7 @@ export default {
   min-height: 120px;
   transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
 }
 
 .question-textarea:focus {
@@ -176,15 +154,7 @@ export default {
 
 @media (max-width: 768px) {
   .question-input {
-    padding: 2rem;
-  }
-
-  .input-header h2 {
-    font-size: 1.5rem;
-  }
-
-  .input-header p {
-    font-size: 1rem;
+    padding: 1rem 0;
   }
 
   .question-textarea {

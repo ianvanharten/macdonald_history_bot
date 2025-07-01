@@ -62,8 +62,8 @@ export default {
 }
 
 .suggestions-header h3 {
-  font-family: 'EB Garamond', serif;
-  font-size: 1.6rem;
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
   font-weight: 600;
   color: #2c2c2c;
   margin-bottom: 0.5rem;
@@ -170,7 +170,7 @@ export default {
   }
 
   .suggestions-header h3 {
-    font-size: 1.4rem;
+    font-size: 1.6rem;
   }
 
   .suggestions-header p {
