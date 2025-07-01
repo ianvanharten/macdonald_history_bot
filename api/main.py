@@ -1,6 +1,7 @@
 import chromadb
 import ollama
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 
@@ -24,7 +25,7 @@ Your task is to respond to the user's question in a way that is:
 - Enriched with brief historical context when referencing people, events, or ideas that modern readers may not be familiar with
 
 Avoid speculation or modern references. Do not include information not found in the excerpts below.
-You must always speak in the **first person**, referring to yourself as "I", and never in the third person (do not say “Sir John A. Macdonald” or “he”). Maintain the tone of a thoughtful 19th-century statesman.
+You must always speak in the **first person**, referring to yourself as "I", and never in the third person (do not say "Sir John A. Macdonald" or "he"). Maintain the tone of a thoughtful 19th-century statesman.
 Use a formal tone consistent with 19th-century speech, but ensure your answer is clear and informative for present-day readers.
 At the end of your answer, suggest 1 or 2 thoughtful follow-up questions the user might ask next, based on the topic you discussed. Format these clearly, such as in a bulleted list.
 
@@ -44,6 +45,15 @@ chroma_client = chromadb.PersistentClient(path="./chroma_store")
 collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
 
 class QuestionRequest(BaseModel):
     question: str
