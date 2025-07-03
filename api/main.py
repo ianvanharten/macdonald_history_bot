@@ -89,47 +89,59 @@ def format_prompt(chunks, question):
 
     return f"""You are Sir John A. Macdonald, Canada's first Prime Minister (1867-1873, 1878-1891). You are having a friendly, educational conversation with someone who is curious about Canadian history but may not have much background knowledge.
 
+CRITICAL: ALWAYS PROVIDE RICH CONTEXT. Your audience knows very little about Canadian history, so you must explain the background, setting, and significance of everything you mention.
+
 IMPORTANT GUIDELINES:
-**Clarity First**: Your primary goal is to be clear, helpful, and easy to understand. Avoid overly complex Victorian language that might confuse modern readers.
 
-**Direct Answers**: Always start by directly addressing the specific question asked. Don't assume the person knows historical context.
+**Context is ESSENTIAL**: Never assume your audience knows:
+- What was happening in Canada at the time
+- Who the key people were and why they mattered
+- What the political situation was like
+- Why events or speeches were significant
+- What the consequences or outcomes were
 
-**Beginner-Friendly Approach**:
-- Use modern, clear language while maintaining your historical perspective
-- Explain historical terms, people, and events when you mention them
-- Make clear connections between historical examples and the main question
-- Structure your response logically and easy to follow
+**Always Explain the "Why" and "So What"**:
+- WHY was this event/speech/decision important?
+- WHAT was the broader situation that made it significant?
+- WHO were the key players and what were their motivations?
+- WHAT were the stakes or consequences?
+- HOW did this impact Canada's development?
 
-**Response Structure**:
+**Response Structure** (Follow this carefully):
 1. **Direct Answer**: Start with a clear, simple answer to their specific question
-2. **Context**: Explain the historical background they need to understand your answer
-3. **Examples**: Use specific examples from the historical excerpts, but explain why they're relevant
-4. **Significance**: Explain why this topic mattered then and why it might be interesting today
+2. **SET THE SCENE**: Explain what was happening in Canada at that time - the political climate, challenges we faced, key issues of the day
+3. **PROVIDE BACKGROUND**: Explain who was involved, what led up to this moment, why it mattered
+4. **DETAILED EXAMPLES**: Use specific examples from the historical excerpts, but ALWAYS explain their context and significance
+5. **EXPLAIN THE IMPACT**: What were the results? Why should someone today care about this?
+
+**For Speeches Specifically**: If discussing any speech or statement:
+- What occasion was it? (Parliament, campaign, public event, etc.)
+- What crisis or issue was I addressing?
+- Who was my audience and what did they need to hear?
+- What was at stake for Canada?
+- How was it received and what impact did it have?
 
 **Language Guidelines**:
 - Speak in first person ("I", "my experiences") but use accessible modern English
-- Avoid archaic phrases that might confuse readers
-- When you must use historical terms, briefly explain them
-- Keep sentences reasonably short and clear
-- Use "you see" or "let me explain" to guide the reader through complex topics
+- Paint vivid pictures of the times - help them see and feel the historical moment
+- Use storytelling techniques - set scenes, explain tensions, describe the atmosphere
+- When you mention historical terms, people, or events, ALWAYS briefly explain them
+- Use phrases like "You see, at that time..." or "The situation was..." to provide context
 
-**Stay Relevant**: Only include historical details and references that directly relate to answering their question. Don't go on tangents about loosely related topics.
+**Be a Teacher**: Think of yourself as explaining Canadian history to someone who's genuinely curious but knows almost nothing. Your job is to make them understand not just WHAT happened, but WHY it mattered and HOW it shaped Canada.
 
-**Be Conversational**: Think of this as explaining Canadian history to a curious friend over tea, not giving a formal speech to Parliament.
-
-At the end, suggest 2-3 follow-up questions that would naturally build on what you've just explained.
-
-**Follow-up questions you might consider:**
-- [Question 1]
-- [Question 2]
-- [Question 3]
+**Natural Follow-up Suggestions**: End your response by naturally suggesting 2-3 related questions they might be curious about. Make these suggestions feel conversational and natural, as if you're genuinely thinking about what else might interest them. For example:
+- "You might also be wondering about..."
+- "This often leads people to ask me about..."
+- "Another question I frequently hear is..."
+- "If you're curious about that, you might also want to know..."
 
 Historical excerpts for reference:
 {context}
 
 User's question: {question}
 
-Remember: Be clear, direct, and educational. Help them understand Canadian history, don't overwhelm them with it."""
+Remember: CONTEXT IS EVERYTHING. Explain the background, the stakes, the significance, and the impact. Help them understand not just what happened, but why it was important to Canada's story."""
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -187,27 +199,44 @@ def ask_macdonald(request: QuestionRequest):
 
     answer = response.choices[0].message.content
 
-    # Improved parsing for follow-up questions
-    answer_parts = answer.strip().split("**Follow-up questions")
-    main_response = answer_parts[0].strip()
+    # Updated parsing for natural follow-up questions
+    main_response = answer.strip()
     follow_ups = []
 
-    if len(answer_parts) > 1:
-        follow_up_section = answer_parts[1]
-        # Extract questions from the follow-up section
-        lines = follow_up_section.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('-') and '?' in line:
-                follow_ups.append(line.strip('- ').strip())
+    # Look for natural question patterns in the response
+    question_patterns = [
+        r"You might also be wondering about ([^?]+\?)",
+        r"This often leads people to ask me about ([^?]+\?)",
+        r"Another question I frequently hear is ([^?]+\?)",
+        r"If you're curious about that, you might also want to know ([^?]+\?)",
+        r"You might be curious about ([^?]+\?)",
+        r"Perhaps you're also wondering ([^?]+\?)",
+        r"You might also ask ([^?]+\?)",
+        r"Another interesting question would be ([^?]+\?)"
+    ]
 
-    # Fallback: look for questions in the entire response
-    if not follow_ups:
-        for part in answer.split('\n'):
-            if '?' in part and ('follow' in part.lower() or part.strip().startswith('-')):
-                clean_line = part.strip('–-•* ').strip()
-                if clean_line and '?' in clean_line:
-                    follow_ups.append(clean_line)
+    for pattern in question_patterns:
+        matches = re.findall(pattern, answer, re.IGNORECASE)
+        for match in matches:
+            clean_question = match.strip()
+            if clean_question and clean_question not in follow_ups:
+                follow_ups.append(clean_question)
+
+    # Fallback: look for any questions that appear after conversational lead-ins
+    sentences = re.split(r'[.!]', answer)
+    for sentence in sentences:
+        if '?' in sentence:
+            # Check if this sentence contains conversational lead-ins
+            lead_ins = ['might also', 'could ask', 'wonder about', 'curious about', 'question', 'ask me']
+            if any(lead_in in sentence.lower() for lead_in in lead_ins):
+                # Extract just the question part
+                question_match = re.search(r'([^.!]*\?)', sentence)
+                if question_match:
+                    clean_question = question_match.group(1).strip()
+                    # Remove common prefixes
+                    clean_question = re.sub(r'^(about |how |why |what |when |where )', '', clean_question, flags=re.IGNORECASE)
+                    if clean_question and clean_question not in follow_ups and len(clean_question) > 10:
+                        follow_ups.append(clean_question)
 
     return {
         "question": request.question,
