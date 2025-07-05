@@ -1,11 +1,12 @@
 import chromadb
 import os
 import re
+import requests
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -77,13 +78,13 @@ def clean_duplicated_text(text):
 
 def format_prompt(chunks, question):
     """
-    Formats historical excerpts and the user's question into a comprehensive prompt for OpenAI.
+    Formats historical excerpts and the user's question into a comprehensive prompt for OpenRouter.
     """
     # Clean the chunks before formatting
     cleaned_chunks = [(clean_duplicated_text(doc), meta) for doc, meta in chunks]
 
     context = "\n\n".join([
-        f"[Excerpt from {meta['source']} - page {meta['page']}, {meta['year']}]\n{doc}"
+        f"[Excerpt from {meta.get('source', 'Unknown source')} - page {meta.get('page', 'Unknown')}, {meta.get('year', 'Unknown year')}]\n{doc}"
         for doc, meta in cleaned_chunks
     ])
 
@@ -92,7 +93,7 @@ def format_prompt(chunks, question):
 Your goal is to answer their question clearly and thoroughly — as if you were personally speaking to them — while providing enough background to help them understand the full significance of what you're saying.
 
 Guidelines:
-Always provide historical context. Don’t assume the reader knows who the people are, what events happened, or why they mattered.
+Always provide historical context. Don't assume the reader knows who the people are, what events happened, or why they mattered.
 
 Speak in the first person, in your historical voice, but use accessible, modern language.
 
@@ -117,9 +118,6 @@ Historical excerpts for reference:
 User's question: {question}
 
 Remember: CONTEXT IS EVERYTHING. Explain the background, the stakes, the significance, and the impact. Help them understand not just what happened, but why it was important to Canada's story."""
-
-# Initialize OpenAI client
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Load embedding model (same one used for indexing)
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
@@ -159,20 +157,29 @@ def ask_macdonald(request: QuestionRequest):
     chunks = list(zip(results["documents"][0], results["metadatas"][0]))
     prompt = format_prompt(chunks, request.question)
 
-    # Use OpenAI with better parameters for comprehensive responses
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # Consider upgrading to "gpt-4" for even better quality
-        messages=[
-            {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.8,  # Slightly higher for more engaging responses
-        max_tokens=1500,  # Significantly increased for comprehensive answers
-        presence_penalty=0.1,  # Encourage diverse vocabulary
-        frequency_penalty=0.1   # Reduce repetition
+    # Use OpenRouter with the Mistral model
+    response = requests.post(
+        url="https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+            "Content-Type": "application/json",
+        },
+        data=json.dumps({
+            "model": "deepseek/deepseek-chat-v3-0324:free",
+            "messages": [
+                {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.8,
+            "max_tokens": 1500,
+            # Note: OpenRouter/Mistral may not support presence_penalty and frequency_penalty
+            # Remove these if they cause errors
+        })
     )
 
-    answer = response.choices[0].message.content
+    # Parse the response from OpenRouter
+    response_data = response.json()
+    answer = response_data["choices"][0]["message"]["content"]
 
     # Updated parsing for natural follow-up questions
     main_response = answer.strip()
@@ -219,9 +226,9 @@ def ask_macdonald(request: QuestionRequest):
         "sources": [
             {
                 "quote": clean_duplicated_text(doc),  # Clean the source quotes for display
-                "source": meta["source"],
-                "page": meta["page"],
-                "year": meta["year"]
+                "source": meta.get("source", "Unknown source"),
+                "page": meta.get("page", "Unknown"),
+                "year": meta.get("year", "Unknown year")
             }
             for doc, meta in zip(results["documents"][0], results["metadatas"][0])
         ],
