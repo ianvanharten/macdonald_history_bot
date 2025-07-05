@@ -157,29 +157,57 @@ def ask_macdonald(request: QuestionRequest):
     chunks = list(zip(results["documents"][0], results["metadatas"][0]))
     prompt = format_prompt(chunks, request.question)
 
-    # Use OpenRouter with the Mistral model
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
-            "Content-Type": "application/json",
-        },
-        data=json.dumps({
-            "model": "deepseek/deepseek-chat-v3-0324:free",
-            "messages": [
-                {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging."},
-                {"role": "user", "content": prompt}
-            ],
-            "temperature": 0.8,
-            "max_tokens": 1500,
-            # Note: OpenRouter/Mistral may not support presence_penalty and frequency_penalty
-            # Remove these if they cause errors
-        })
-    )
+    # Use OpenRouter with better error handling
+    try:
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {os.getenv('OPENROUTER_API_KEY')}",
+                "Content-Type": "application/json",
+            },
+            data=json.dumps({
+                "model": "deepseek/deepseek-r1-0528:free",
+                "messages": [
+                    {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.8,
+                "max_tokens": 1500,
+            }),
+            timeout=60
+        )
 
-    # Parse the response from OpenRouter
-    response_data = response.json()
-    answer = response_data["choices"][0]["message"]["content"]
+        # Check if request was successful
+        response.raise_for_status()
+
+        # Parse the response
+        response_data = response.json()
+
+        # Debug: Print the response structure
+        print("API Response:", response_data)
+
+        # Check if response has expected structure
+        if "choices" not in response_data:
+            print("Error: No 'choices' in response")
+            if "error" in response_data:
+                error_msg = response_data["error"].get("message", "Unknown error")
+                return {"error": f"API Error: {error_msg}"}
+            else:
+                return {"error": f"Unexpected response format: {response_data}"}
+
+        # Extract the answer
+        answer = response_data["choices"][0]["message"]["content"]
+
+    except requests.exceptions.RequestException as e:
+        print(f"Request failed: {e}")
+        return {"error": f"Request failed: {str(e)}"}
+    except KeyError as e:
+        print(f"KeyError: {e}")
+        print(f"Response data: {response_data}")
+        return {"error": f"Unexpected response format: missing key {e}"}
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return {"error": f"Unexpected error: {str(e)}"}
 
     # Updated parsing for natural follow-up questions
     main_response = answer.strip()
