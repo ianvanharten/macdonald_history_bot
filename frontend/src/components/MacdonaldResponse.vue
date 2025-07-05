@@ -13,8 +13,7 @@
           </div>
 
           <div class="response-text">
-            <p v-for="(paragraph, index) in formattedParagraphs" :key="index" class="paragraph">
-              {{ paragraph }}
+            <p v-for="(paragraph, index) in formattedParagraphs" :key="index" class="paragraph" v-html="paragraph">
             </p>
           </div>
 
@@ -49,6 +48,7 @@
 
 <script>
 import { computed } from 'vue'
+import MarkdownIt from 'markdown-it'
 
 export default {
   name: 'MacdonaldResponse',
@@ -63,6 +63,13 @@ export default {
     }
   },
   setup(props) {
+    // Initialize markdown parser
+    const md = new MarkdownIt({
+      html: true,
+      breaks: true,
+      linkify: true
+    })
+
     const formattedDate = computed(() => {
       const now = new Date()
       return now.toLocaleDateString('en-GB', {
@@ -109,10 +116,11 @@ export default {
         }
       }
 
-      // Clean up paragraphs and filter out empty ones
+      // Clean up paragraphs, filter out empty ones, and convert markdown to HTML
       return paragraphs
         .map(p => p.trim())
         .filter(p => p.length > 0)
+        .map(p => md.renderInline(p)) // Convert markdown to HTML
     })
 
     return {
