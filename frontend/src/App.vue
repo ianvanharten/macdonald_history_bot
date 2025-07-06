@@ -27,11 +27,7 @@
             :sources="response.sources"
           />
 
-          <FollowUpSuggestions
-            v-if="response && response.follow_ups && response.follow_ups.length > 0"
-            :suggestions="response.follow_ups"
-            @suggestion-clicked="handleSuggestionClicked"
-          />
+
         </div>
 
         <div v-if="error" class="error-message">
@@ -52,15 +48,13 @@ import axios from 'axios'
 import QuestionInput from './components/QuestionInput.vue'
 import MacdonaldResponse from './components/MacdonaldResponse.vue'
 import SourceQuotes from './components/SourceQuotes.vue'
-import FollowUpSuggestions from './components/FollowUpSuggestions.vue'
 
 export default {
   name: 'App',
   components: {
     QuestionInput,
     MacdonaldResponse,
-    SourceQuotes,
-    FollowUpSuggestions
+    SourceQuotes
   },
   setup() {
     const currentQuestion = ref('')
@@ -112,18 +106,13 @@ export default {
       }
     }
 
-    const handleSuggestionClicked = (suggestion) => {
-      handleQuestionSubmitted(suggestion)
-    }
-
     return {
       currentQuestion,
       response,
       isLoading,
       error,
       responseSection,
-      handleQuestionSubmitted,
-      handleSuggestionClicked
+      handleQuestionSubmitted
     }
   }
 }

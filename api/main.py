@@ -111,7 +111,7 @@ Your tone should be **historical, reflective, and occasionally eloquent**, but a
 
 ---
 
-At the end of your answer, **suggest 2–3 natural follow-up questions** the reader might want to ask next. These should sound conversational and thoughtful, such as:
+At the end of your answer, **suggest 2 natural follow-up questions** the reader might want to ask next. These should sound conversational and thoughtful, such as:
 
 - "You might also wonder about..."
 - "That brings to mind another question people often ask..."
@@ -216,44 +216,8 @@ def ask_macdonald(request: QuestionRequest):
         print(f"Unexpected error: {e}")
         return {"error": f"Unexpected error: {str(e)}"}
 
-    # Updated parsing for natural follow-up questions
+    # Clean up the response
     main_response = answer.strip()
-    follow_ups = []
-
-    # Look for natural question patterns in the response
-    question_patterns = [
-        r"You might also be wondering about ([^?]+\?)",
-        r"This often leads people to ask me about ([^?]+\?)",
-        r"Another question I frequently hear is ([^?]+\?)",
-        r"If you're curious about that, you might also want to know ([^?]+\?)",
-        r"You might be curious about ([^?]+\?)",
-        r"Perhaps you're also wondering ([^?]+\?)",
-        r"You might also ask ([^?]+\?)",
-        r"Another interesting question would be ([^?]+\?)"
-    ]
-
-    for pattern in question_patterns:
-        matches = re.findall(pattern, answer, re.IGNORECASE)
-        for match in matches:
-            clean_question = match.strip()
-            if clean_question and clean_question not in follow_ups:
-                follow_ups.append(clean_question)
-
-    # Fallback: look for any questions that appear after conversational lead-ins
-    sentences = re.split(r'[.!]', answer)
-    for sentence in sentences:
-        if '?' in sentence:
-            # Check if this sentence contains conversational lead-ins
-            lead_ins = ['might also', 'could ask', 'wonder about', 'curious about', 'question', 'ask me']
-            if any(lead_in in sentence.lower() for lead_in in lead_ins):
-                # Extract just the question part
-                question_match = re.search(r'([^.!]*\?)', sentence)
-                if question_match:
-                    clean_question = question_match.group(1).strip()
-                    # Remove common prefixes
-                    clean_question = re.sub(r'^(about |how |why |what |when |where )', '', clean_question, flags=re.IGNORECASE)
-                    if clean_question and clean_question not in follow_ups and len(clean_question) > 10:
-                        follow_ups.append(clean_question)
 
     return {
         "question": request.question,
@@ -266,8 +230,7 @@ def ask_macdonald(request: QuestionRequest):
                 "year": meta.get("year", "Unknown year")
             }
             for doc, meta in zip(results["documents"][0], results["metadatas"][0])
-        ],
-        "follow_ups": follow_ups[:3]  # Limit to 3 follow-ups
+        ]
     }
 
 
