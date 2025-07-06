@@ -27,7 +27,16 @@
             :sources="response.sources"
           />
 
-
+          <!-- Follow-up question input -->
+          <div v-if="response && !isLoading" class="follow-up-section">
+            <h3 class="follow-up-title">Ask Another Question</h3>
+            <QuestionInput
+              @question-submitted="handleQuestionSubmitted"
+              :is-loading="isLoading"
+              :current-question="''"
+              class="follow-up-input"
+            />
+          </div>
         </div>
 
         <div v-if="error" class="error-message">
@@ -192,6 +201,27 @@ export default {
   font-style: italic;
 }
 
+.follow-up-section {
+  margin-top: 3rem;
+  padding: 2rem;
+  background: #f8f8ff;
+  border-radius: 12px;
+  border-top: 3px solid #2c2c2c;
+}
+
+.follow-up-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  color: #2c2c2c;
+  margin-bottom: 1rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.follow-up-input {
+  margin: 0;
+}
+
 .footer {
   text-align: center;
   padding: 4rem 0;
@@ -221,6 +251,15 @@ export default {
     font-size: 1rem;
     max-width: 90%;
     padding: 0 1rem;
+  }
+
+  .follow-up-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+  }
+
+  .follow-up-title {
+    font-size: 1.3rem;
   }
 }
 </style>

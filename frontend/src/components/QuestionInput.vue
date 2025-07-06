@@ -54,7 +54,7 @@ export default {
     const submitQuestion = () => {
       if (question.value.trim() && !props.isLoading) {
         emit('question-submitted', question.value.trim())
-        // Don't clear the question here - let the parent handle it
+        question.value = '' // Clear the input after submission
       }
     }
 
