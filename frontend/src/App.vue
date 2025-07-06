@@ -39,7 +39,7 @@
           </div>
         </div>
 
-        <div v-if="error" class="error-message">
+        <div v-if="error" :class="['error-message', errorType]">
           <p>{{ error }}</p>
         </div>
       </div>
@@ -70,6 +70,7 @@ export default {
     const response = ref(null)
     const isLoading = ref(false)
     const error = ref('')
+    const errorType = ref('')
     const responseSection = ref(null)
 
     const scrollToResponse = () => {
@@ -86,6 +87,7 @@ export default {
       currentQuestion.value = question
       isLoading.value = true
       error.value = ''
+      errorType.value = ''
       response.value = null
 
       // Scroll to loading state after a brief delay
@@ -108,7 +110,25 @@ export default {
         }, 200) // Small delay to allow fade animation to start
 
       } catch (err) {
-        error.value = 'I apologize, but I am unable to respond at this moment. Please ensure the server is running and try again.'
+        // Check for rate limit errors specifically
+        if (err.response?.status === 429 ||
+            (err.response?.data?.error && err.response.data.error.includes('rate limit')) ||
+            (err.message && err.message.includes('429'))) {
+          error.value = `I apologize, but we've reached the usage limit for the current AI model. Please wait a few minutes and try again, or consider using a different model if this persists.`
+          errorType.value = 'rate-limit'
+        } else if (err.response?.status >= 500) {
+          error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
+          errorType.value = 'server-error'
+        } else if (err.response?.status === 401 || err.response?.status === 403) {
+          error.value = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
+          errorType.value = 'auth-error'
+        } else if (!navigator.onLine) {
+          error.value = 'Please check your internet connection and try again.'
+          errorType.value = 'network-error'
+        } else {
+          error.value = 'I apologize, but I am unable to respond at this moment. Please ensure the server is running and try again.'
+          errorType.value = 'general-error'
+        }
         console.error('API Error:', err)
       } finally {
         isLoading.value = false
@@ -120,6 +140,7 @@ export default {
       response,
       isLoading,
       error,
+      errorType,
       responseSection,
       handleQuestionSubmitted
     }
@@ -199,6 +220,19 @@ export default {
   text-align: center;
   color: #666;
   font-style: italic;
+  line-height: 1.5;
+}
+
+.error-message.rate-limit {
+  background: #fff3cd;
+  border-color: #ffeaa7;
+  color: #856404;
+}
+
+.error-message.server-error {
+  background: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
 }
 
 .follow-up-section {
