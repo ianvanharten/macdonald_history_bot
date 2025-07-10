@@ -106,6 +106,28 @@ export default {
           model: model
         })
 
+        // Check if the response contains an error field (backend-handled errors)
+        if (result.data.error) {
+          // Handle backend-reported errors
+          const errorMessage = result.data.error.toLowerCase()
+
+          if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
+            error.value = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
+            errorType.value = 'rate-limit'
+          } else if (errorMessage.includes('timeout') || errorMessage.includes('unavailable')) {
+            error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
+            errorType.value = 'server-error'
+          } else if (errorMessage.includes('authentication') || errorMessage.includes('unauthorized')) {
+            error.value = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
+            errorType.value = 'auth-error'
+          } else {
+            error.value = result.data.error
+            errorType.value = 'general-error'
+          }
+          return // Exit early, don't set response.value
+        }
+
+        // If no error, process the successful response
         response.value = result.data
 
         // Scroll to response after it loads
@@ -115,11 +137,11 @@ export default {
         }, 200) // Small delay to allow fade animation to start
 
       } catch (err) {
-        // Check for rate limit errors specifically
+        // Handle HTTP-level errors (network issues, etc.)
         if (err.response?.status === 429 ||
             (err.response?.data?.error && err.response.data.error.includes('rate limit')) ||
             (err.message && err.message.includes('429'))) {
-          error.value = `I apologize, but we've reached the usage limit for the current AI model. Please wait a few minutes and try again, or try selecting a different AI model.`
+          error.value = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
           errorType.value = 'rate-limit'
         } else if (err.response?.status >= 500) {
           error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
