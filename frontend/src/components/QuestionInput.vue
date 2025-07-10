@@ -12,14 +12,30 @@
           required
         ></textarea>
 
-        <button
-          type="submit"
-          class="submit-button"
-          :disabled="isLoading || !question.trim()"
-        >
-          <span v-if="isLoading">Thinking...</span>
-          <span v-else>Ask Question</span>
-        </button>
+        <div class="controls-row">
+          <div class="model-selector">
+            <label for="model-select" class="model-label">AI Model:</label>
+            <select
+              id="model-select"
+              v-model="selectedModel"
+              class="model-select"
+              :disabled="isLoading"
+            >
+              <option value="google/gemini-2.0-flash-exp:free">Gemini 2.0 Flash (Recommended)</option>
+              <option value="mistralai/mistral-small-3.2-24b-instruct:free">Mistral Small 3.2 24B</option>
+              <option value="openrouter/cypher-alpha:free">OpenRouter Cypher Alpha</option>
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            class="submit-button"
+            :disabled="isLoading || !question.trim()"
+          >
+            <span v-if="isLoading">Thinking...</span>
+            <span v-else>Ask Question</span>
+          </button>
+        </div>
       </div>
     </form>
   </div>
@@ -43,6 +59,7 @@ export default {
   emits: ['question-submitted'],
   setup(props, { emit }) {
     const question = ref('')
+    const selectedModel = ref('google/gemini-2.0-flash-exp:free') // Default to Gemini
 
     // Watch for changes in currentQuestion to update the input when suggestions are clicked
     watch(() => props.currentQuestion, (newQuestion) => {
@@ -53,7 +70,10 @@ export default {
 
     const submitQuestion = () => {
       if (question.value.trim() && !props.isLoading) {
-        emit('question-submitted', question.value.trim())
+        emit('question-submitted', {
+          question: question.value.trim(),
+          model: selectedModel.value
+        })
         question.value = '' // Clear the input after submission
       }
     }
@@ -66,6 +86,7 @@ export default {
 
     return {
       question,
+      selectedModel,
       submitQuestion,
       handleEnterKey
     }
@@ -79,8 +100,6 @@ export default {
   margin: 0.5rem 0;
 }
 
-
-
 .question-form {
   width: 100%;
 }
@@ -89,6 +108,51 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.controls-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.model-selector {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.model-label {
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.model-select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  font-family: 'Crimson Text', serif;
+  font-size: 0.95rem;
+  color: #2c2c2c;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: #2c2c2c;
+  box-shadow: 0 2px 6px rgba(44, 44, 44, 0.1);
+}
+
+.model-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .question-textarea {
@@ -123,7 +187,6 @@ export default {
 }
 
 .submit-button {
-  align-self: flex-end;
   padding: 1rem 2.5rem;
   background: #2c2c2c;
   color: #fff;
@@ -134,6 +197,8 @@ export default {
   cursor: pointer;
   transition: all 0.3s ease;
   letter-spacing: 0.5px;
+  border-radius: 8px;
+  white-space: nowrap;
 }
 
 .submit-button:hover:not(:disabled) {
@@ -157,6 +222,12 @@ export default {
     padding: 1rem 0;
   }
 
+  .controls-row {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
   .question-textarea {
     font-size: 1rem;
     min-height: 100px;
@@ -166,7 +237,10 @@ export default {
   .submit-button {
     padding: 1rem 2rem;
     font-size: 1rem;
-    align-self: stretch;
+  }
+
+  .model-select {
+    font-size: 0.9rem;
   }
 }
 </style>

@@ -152,6 +152,7 @@ app.add_middleware(
 
 class QuestionRequest(BaseModel):
     question: str
+    model: str = "google/gemini-2.0-flash-exp:free"  # Default model
 
 @app.get("/")
 def read_root():
@@ -179,7 +180,7 @@ def ask_macdonald(request: QuestionRequest):
                 "Content-Type": "application/json",
             },
             data=json.dumps({
-                "model": "google/gemini-2.0-flash-exp:free",
+                "model": request.model,  # Use the selected model
                 "messages": [
                     {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging. IMPORTANT: Respond ONLY in English. Do not use any other languages or characters."},
                     {"role": "user", "content": prompt}

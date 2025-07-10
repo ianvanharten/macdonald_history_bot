@@ -83,7 +83,11 @@ export default {
       }
     }
 
-    const handleQuestionSubmitted = async (question) => {
+    const handleQuestionSubmitted = async (data) => {
+      // Handle both old format (string) and new format (object) for compatibility
+      const question = typeof data === 'string' ? data : data.question
+      const model = typeof data === 'string' ? 'google/gemini-2.0-flash-exp:free' : data.model
+
       currentQuestion.value = question
       isLoading.value = true
       error.value = ''
@@ -98,7 +102,8 @@ export default {
 
       try {
         const result = await axios.post('http://localhost:8000/ask', {
-          question: question
+          question: question,
+          model: model
         })
 
         response.value = result.data
@@ -114,7 +119,7 @@ export default {
         if (err.response?.status === 429 ||
             (err.response?.data?.error && err.response.data.error.includes('rate limit')) ||
             (err.message && err.message.includes('429'))) {
-          error.value = `I apologize, but we've reached the usage limit for the current AI model. Please wait a few minutes and try again, or consider using a different model if this persists.`
+          error.value = `I apologize, but we've reached the usage limit for the current AI model. Please wait a few minutes and try again, or try selecting a different AI model.`
           errorType.value = 'rate-limit'
         } else if (err.response?.status >= 500) {
           error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
