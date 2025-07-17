@@ -30,7 +30,7 @@ def setup_chroma_db():
 
     # Process all JSON files in the output directory
     output_dir = Path("output")
-    
+
     if not output_dir.exists():
         print(f"❌ Output directory '{output_dir}' does not exist.")
         print("Please run the extraction scripts first to generate JSON files.")
@@ -39,7 +39,7 @@ def setup_chroma_db():
     documents = []
     metadatas = []
     ids = []
-    
+
     json_files = list(output_dir.glob("*.json"))
     if not json_files:
         print(f"❌ No JSON files found in '{output_dir}' directory.")
@@ -48,7 +48,7 @@ def setup_chroma_db():
     doc_id = 0
     for json_file in json_files:
         print(f"Processing {json_file.name}...")
-        
+
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -69,7 +69,7 @@ def setup_chroma_db():
                     continue
 
                 documents.append(content)
-                
+
                 # Fix: Preserve all available metadata instead of just basic fields
                 metadata = {
                     'speaker': entry.get('speaker', 'Unknown'),
@@ -78,7 +78,7 @@ def setup_chroma_db():
                     'year': entry.get('year', 0),
                     'chunk_index': entry.get('chunk_index', 0)
                 }
-                
+
                 # Add optional metadata fields if they exist
                 if 'parliament' in entry and entry['parliament'] is not None:
                     metadata['parliament'] = entry['parliament']
@@ -86,15 +86,15 @@ def setup_chroma_db():
                     metadata['session'] = entry['session']
                 if 'volume' in entry and entry['volume'] is not None:
                     metadata['volume'] = entry['volume']
-                
+
                 metadatas.append(metadata)
-                
-                # Fix: Use descriptive IDs like the embed_chunks_local.py script
-                chunk_id = f"parl_{entry.get('parliament', 'unknown')}_sess_{entry.get('session', 'unknown')}_{entry.get('source', 'unknown')}_{entry.get('page', 0)}_{entry.get('chunk_index', doc_id)}"
+
+                # Fix: Use unique doc_id to prevent duplicates
+                chunk_id = f"parl_{entry.get('parliament', 'unknown')}_sess_{entry.get('session', 'unknown')}_{json_file.stem}_{doc_id}"
                 ids.append(chunk_id)
-                
+
                 doc_id += 1
-                
+
             except Exception as e:
                 print(f"⚠️  Skipping corrupted entry in {json_file.name}: {e}")
                 continue
@@ -108,7 +108,7 @@ def setup_chroma_db():
     # Add documents in batches to avoid memory issues
     batch_size = 100
     total_batches = (len(documents) - 1) // batch_size + 1
-    
+
     for i in range(0, len(documents), batch_size):
         batch_docs = documents[i:i+batch_size]
         batch_metas = metadatas[i:i+batch_size]
@@ -126,14 +126,14 @@ def setup_chroma_db():
             )
 
             print(f"✅ Processed batch {i//batch_size + 1}/{total_batches}")
-            
+
         except Exception as e:
             print(f"❌ Failed to process batch {i//batch_size + 1}: {e}")
             continue
 
     print("✅ ChromaDB setup complete!")
     print(f"Total documents indexed: {len(documents)}")
-    
+
     # Show collection stats
     try:
         collection_count = collection.count()
