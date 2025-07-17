@@ -10,37 +10,42 @@
 
     <main class="main-content">
       <div class="conversation-container">
-        <QuestionInput
-          @question-submitted="handleQuestionSubmitted"
-          :is-loading="isLoading"
-          :current-question="currentQuestion"
-        />
-
-        <div v-if="response || isLoading" class="response-section" ref="responseSection">
-          <MacdonaldResponse
-            :response="response"
-            :is-loading="isLoading"
+        <!-- Render all previous Q&A pairs -->
+        <div v-for="(pair, index) in conversationHistory" :key="index" class="conversation-pair">
+          <QuestionInput
+            :question-text="pair.question"
+            :is-disabled="true"
+            :is-loading="false"
+            :current-question="pair.question"
+            :show-submit-button="false"
           />
 
-          <SourceQuotes
-            v-if="response && response.sources && response.sources.length > 0"
-            :sources="response.sources"
-          />
-
-          <!-- Follow-up question input -->
-          <div v-if="response && !isLoading" class="follow-up-section">
-            <h3 class="follow-up-title">Ask Another Question</h3>
-            <QuestionInput
-              @question-submitted="handleQuestionSubmitted"
-              :is-loading="isLoading"
-              :current-question="''"
-              class="follow-up-input"
+          <div v-if="pair.response || pair.isLoading" class="response-section">
+            <MacdonaldResponse
+              :response="pair.response"
+              :is-loading="pair.isLoading"
             />
+
+            <SourceQuotes
+              v-if="pair.response && pair.response.sources && pair.response.sources.length > 0"
+              :sources="pair.response.sources"
+            />
+          </div>
+
+          <div v-if="pair.error" :class="['error-message', pair.errorType]">
+            <p>{{ pair.error }}</p>
           </div>
         </div>
 
-        <div v-if="error" :class="['error-message', errorType]">
-          <p>{{ error }}</p>
+        <!-- Current active question input (only if under 3 questions) -->
+        <div v-if="conversationHistory.length < 3">
+          <h3 v-if="conversationHistory.length > 0" class="follow-up-title">Ask Another Question</h3>
+          <QuestionInput
+            @question-submitted="handleQuestionSubmitted"
+            :is-loading="isLoading"
+            :current-question="currentQuestion"
+            :is-disabled="false"
+          />
         </div>
       </div>
     </main>
@@ -52,7 +57,7 @@
 </template>
 
 <script>
-import { ref, nextTick } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import axios from 'axios'
 import QuestionInput from './components/QuestionInput.vue'
 import MacdonaldResponse from './components/MacdonaldResponse.vue'
@@ -67,20 +72,18 @@ export default {
   },
   setup() {
     const currentQuestion = ref('')
-    const response = ref(null)
     const isLoading = ref(false)
-    const error = ref('')
-    const errorType = ref('')
-    const responseSection = ref(null)
+    const conversationHistory = reactive([])
 
-    const scrollToResponse = () => {
-      if (responseSection.value) {
-        responseSection.value.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest'
-        })
-      }
+    const scrollToBottom = () => {
+      nextTick(() => {
+        setTimeout(() => {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+          })
+        }, 100)
+      })
     }
 
     const handleQuestionSubmitted = async (data) => {
@@ -88,17 +91,26 @@ export default {
       const question = typeof data === 'string' ? data : data.question
       const model = typeof data === 'string' ? 'google/gemini-2.0-flash-exp:free' : data.model
 
+      // Don't allow more than 3 questions
+      if (conversationHistory.length >= 3) {
+        return
+      }
+
       currentQuestion.value = question
       isLoading.value = true
-      error.value = ''
-      errorType.value = ''
-      response.value = null
 
-      // Scroll to loading state after a brief delay
-      await nextTick()
-      setTimeout(() => {
-        scrollToResponse()
-      }, 100)
+      // Add new conversation pair
+      const newPair = {
+        question: question,
+        response: null,
+        isLoading: true,
+        error: '',
+        errorType: ''
+      }
+      conversationHistory.push(newPair)
+
+      // Scroll to show the new question
+      scrollToBottom()
 
       try {
         const result = await axios.post('http://localhost:8000/ask', {
@@ -112,63 +124,57 @@ export default {
           const errorMessage = result.data.error.toLowerCase()
 
           if (errorMessage.includes('rate limit') || errorMessage.includes('429')) {
-            error.value = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
-            errorType.value = 'rate-limit'
+            newPair.error = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
+            newPair.errorType = 'rate-limit'
           } else if (errorMessage.includes('timeout') || errorMessage.includes('unavailable')) {
-            error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
-            errorType.value = 'server-error'
+            newPair.error = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
+            newPair.errorType = 'server-error'
           } else if (errorMessage.includes('authentication') || errorMessage.includes('unauthorized')) {
-            error.value = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
-            errorType.value = 'auth-error'
+            newPair.error = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
+            newPair.errorType = 'auth-error'
           } else {
-            error.value = result.data.error
-            errorType.value = 'general-error'
+            newPair.error = result.data.error
+            newPair.errorType = 'general-error'
           }
-          return // Exit early, don't set response.value
+        } else {
+          // If no error, process the successful response
+          newPair.response = result.data
         }
 
-        // If no error, process the successful response
-        response.value = result.data
-
         // Scroll to response after it loads
-        await nextTick()
-        setTimeout(() => {
-          scrollToResponse()
-        }, 200) // Small delay to allow fade animation to start
+        scrollToBottom()
 
       } catch (err) {
         // Handle HTTP-level errors (network issues, etc.)
         if (err.response?.status === 429 ||
             (err.response?.data?.error && err.response.data.error.includes('rate limit')) ||
             (err.message && err.message.includes('429'))) {
-          error.value = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
-          errorType.value = 'rate-limit'
+          newPair.error = `I apologize, but we've reached the usage limit for the AI model. Please wait a few minutes and try again.`
+          newPair.errorType = 'rate-limit'
         } else if (err.response?.status >= 500) {
-          error.value = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
-          errorType.value = 'server-error'
+          newPair.error = 'The AI service is temporarily experiencing issues. Please try again in a moment.'
+          newPair.errorType = 'server-error'
         } else if (err.response?.status === 401 || err.response?.status === 403) {
-          error.value = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
-          errorType.value = 'auth-error'
+          newPair.error = 'There seems to be an authentication issue with the AI service. Please contact support if this persists.'
+          newPair.errorType = 'auth-error'
         } else if (!navigator.onLine) {
-          error.value = 'Please check your internet connection and try again.'
-          errorType.value = 'network-error'
+          newPair.error = 'Please check your internet connection and try again.'
+          newPair.errorType = 'network-error'
         } else {
-          error.value = 'I apologize, but I am unable to respond at this moment. Please ensure the server is running and try again.'
-          errorType.value = 'general-error'
+          newPair.error = 'I apologize, but I am unable to respond at this moment. Please ensure the server is running and try again.'
+          newPair.errorType = 'general-error'
         }
         console.error('API Error:', err)
       } finally {
+        newPair.isLoading = false
         isLoading.value = false
       }
     }
 
     return {
       currentQuestion,
-      response,
       isLoading,
-      error,
-      errorType,
-      responseSection,
+      conversationHistory,
       handleQuestionSubmitted
     }
   }
@@ -233,9 +239,18 @@ export default {
   margin: 0 auto;
 }
 
+.conversation-pair {
+  margin-bottom: 3rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #eee;
+}
+
+.conversation-pair:last-child {
+  border-bottom: none;
+}
+
 .response-section {
   margin-top: 2rem;
-  scroll-margin-top: 2rem; /* Adds space above when scrolled to */
 }
 
 .error-message {
@@ -262,14 +277,6 @@ export default {
   color: #721c24;
 }
 
-.follow-up-section {
-  margin-top: 3rem;
-  padding: 2rem;
-  background: #f8f8ff;
-  border-radius: 12px;
-  border-top: 3px solid #2c2c2c;
-}
-
 .follow-up-title {
   font-family: 'Playfair Display', serif;
   font-size: 1.5rem;
@@ -277,10 +284,7 @@ export default {
   margin-bottom: 1rem;
   text-align: center;
   font-weight: 600;
-}
-
-.follow-up-input {
-  margin: 0;
+  margin-top: 2rem;
 }
 
 .footer {
@@ -312,11 +316,6 @@ export default {
     font-size: 1rem;
     max-width: 90%;
     padding: 0 1rem;
-  }
-
-  .follow-up-section {
-    margin-top: 2rem;
-    padding: 1.5rem;
   }
 
   .follow-up-title {

@@ -7,16 +7,17 @@
           @keydown.enter.prevent="handleEnterKey"
           placeholder="What would you like to know about Canada's Confederation or my time as Prime Minister?"
           class="question-textarea"
+          :class="{ 'disabled': isDisabled }"
           rows="3"
-          :disabled="isLoading"
-          required
+          :disabled="isLoading || isDisabled"
+          :required="!isDisabled"
         ></textarea>
 
-        <div class="controls-row">
+        <div v-if="showSubmitButton" class="controls-row">
           <button
             type="submit"
             class="submit-button"
-            :disabled="isLoading || !question.trim()"
+            :disabled="isLoading || !question.trim() || isDisabled"
           >
             <span v-if="isLoading">Thinking...</span>
             <span v-else>Ask Question</span>
@@ -40,6 +41,18 @@ export default {
     currentQuestion: {
       type: String,
       default: ''
+    },
+    questionText: {
+      type: String,
+      default: ''
+    },
+    isDisabled: {
+      type: Boolean,
+      default: false
+    },
+    showSubmitButton: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['question-submitted'],
@@ -55,8 +68,15 @@ export default {
       }
     })
 
+    // Watch for questionText prop to set pre-filled text for disabled inputs
+    watch(() => props.questionText, (newText) => {
+      if (newText) {
+        question.value = newText
+      }
+    }, { immediate: true })
+
     const submitQuestion = () => {
-      if (question.value.trim() && !props.isLoading) {
+      if (question.value.trim() && !props.isLoading && !props.isDisabled) {
         emit('question-submitted', {
           question: question.value.trim(),
           model: model
@@ -66,7 +86,7 @@ export default {
     }
 
     const handleEnterKey = (event) => {
-      if (!event.shiftKey) {
+      if (!event.shiftKey && !props.isDisabled) {
         submitQuestion()
       }
     }
@@ -126,6 +146,13 @@ export default {
   background-color: #f5f5f5;
   cursor: not-allowed;
   opacity: 0.7;
+}
+
+.question-textarea.disabled {
+  background-color: #f8f8f8;
+  color: #666;
+  cursor: default;
+  opacity: 0.8;
 }
 
 .question-textarea::placeholder {
