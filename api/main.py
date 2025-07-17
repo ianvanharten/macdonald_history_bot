@@ -152,7 +152,7 @@ app.add_middleware(
 
 class QuestionRequest(BaseModel):
     question: str
-    model: str = "google/gemini-2.0-flash-exp:free"  # Default model
+    model: str = "google/gemini-2.0-flash-001"  # Default model
 
 @app.get("/")
 def read_root():
