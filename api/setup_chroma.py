@@ -17,7 +17,7 @@ def setup_chroma_db():
     try:
         embedder = SentenceTransformer("all-MiniLM-L6-v2")
     except Exception as e:
-        print(f"❌ Failed to load embedding model: {e}")
+        print(f"[ERROR] Failed to load embedding model: {e}")
         sys.exit(1)
 
     # Create ChromaDB client
@@ -25,14 +25,14 @@ def setup_chroma_db():
         chroma_client = chromadb.PersistentClient(path="./chroma_store")
         collection = chroma_client.get_or_create_collection("macdonald_speeches")
     except Exception as e:
-        print(f"❌ Failed to setup ChromaDB: {e}")
+        print(f"[ERROR] Failed to setup ChromaDB: {e}")
         sys.exit(1)
 
     # Process all JSON files in the output directory
     output_dir = Path("output")
 
     if not output_dir.exists():
-        print(f"❌ Output directory '{output_dir}' does not exist.")
+        print(f"[ERROR] Output directory '{output_dir}' does not exist.")
         print("Please run the extraction scripts first to generate JSON files.")
         sys.exit(1)
 
@@ -42,7 +42,7 @@ def setup_chroma_db():
 
     json_files = list(output_dir.glob("*.json"))
     if not json_files:
-        print(f"❌ No JSON files found in '{output_dir}' directory.")
+        print(f"[ERROR] No JSON files found in '{output_dir}' directory.")
         sys.exit(1)
 
     doc_id = 0
@@ -53,11 +53,11 @@ def setup_chroma_db():
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"❌ Failed to read {json_file.name}: {e}")
+            print(f"[ERROR] Failed to read {json_file.name}: {e}")
             continue
 
         if not isinstance(data, list):
-            print(f"⚠️  Skipping {json_file.name}: Expected list format")
+            print(f"[WARNING]  Skipping {json_file.name}: Expected list format")
             continue
 
         for entry in data:
@@ -65,7 +65,7 @@ def setup_chroma_db():
                 # Fix: Use 'content' instead of 'text' to match extraction script output
                 content = entry.get('content', '')
                 if not content:
-                    print(f"⚠️  Skipping empty content in {json_file.name}")
+                    print(f"[WARNING]  Skipping empty content in {json_file.name}")
                     continue
 
                 documents.append(content)
@@ -96,11 +96,11 @@ def setup_chroma_db():
                 doc_id += 1
 
             except Exception as e:
-                print(f"⚠️  Skipping corrupted entry in {json_file.name}: {e}")
+                print(f"[WARNING]  Skipping corrupted entry in {json_file.name}: {e}")
                 continue
 
     if not documents:
-        print("❌ No valid documents found to process.")
+        print("[ERROR] No valid documents found to process.")
         sys.exit(1)
 
     print(f"Adding {len(documents)} documents to ChromaDB...")
@@ -125,13 +125,13 @@ def setup_chroma_db():
                 ids=batch_ids
             )
 
-            print(f"✅ Processed batch {i//batch_size + 1}/{total_batches}")
+            print(f"[SUCCESS] Processed batch {i//batch_size + 1}/{total_batches}")
 
         except Exception as e:
-            print(f"❌ Failed to process batch {i//batch_size + 1}: {e}")
+            print(f"[ERROR] Failed to process batch {i//batch_size + 1}: {e}")
             continue
 
-    print("✅ ChromaDB setup complete!")
+    print("[SUCCESS] ChromaDB setup complete!")
     print(f"Total documents indexed: {len(documents)}")
 
     # Show collection stats
@@ -139,7 +139,7 @@ def setup_chroma_db():
         collection_count = collection.count()
         print(f"Collection now contains: {collection_count} documents")
     except Exception as e:
-        print(f"⚠️  Could not verify collection count: {e}")
+        print(f"[WARNING]  Could not verify collection count: {e}")
 
 if __name__ == "__main__":
     setup_chroma_db()

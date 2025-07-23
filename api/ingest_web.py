@@ -27,7 +27,7 @@ COLLECTION_NAME = "macdonald_speeches"
 PERSIST_DIR = "./chroma_store"
 
 # === SETUP ===
-print("🔧 Loading embedding model and ChromaDB...")
+print("[INFO] Loading embedding model and ChromaDB...")
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 client = chromadb.PersistentClient(path=PERSIST_DIR)
@@ -51,7 +51,7 @@ def get_source_name(url):
 
 def extract_visible_text(url):
     """Extract text from web page with site-specific handling"""
-    print(f"🌐 Fetching {url}...")
+    print(f"[INFO] Fetching {url}...")
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -59,7 +59,7 @@ def extract_visible_text(url):
         response = requests.get(url, headers=headers, timeout=30)
         response.raise_for_status()
 
-        print(f"📊 Response length: {len(response.text)} characters")
+        print(f"[INFO] Response length: {len(response.text)} characters")
 
         soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -96,17 +96,17 @@ def extract_visible_text(url):
                 tag.decompose()
             text = soup.get_text(separator=' ', strip=True)
 
-        print(f"📊 Extracted text length: {len(text)} characters")
+        print(f"[INFO] Extracted text length: {len(text)} characters")
         return text
 
     except Exception as e:
-        print(f"❌ Error processing {url}: {e}")
+        print(f"[ERROR] Error processing {url}: {e}")
         return ""
 
 def process_web_url(url):
     """Process a single web URL"""
     source_name = get_source_name(url)
-    print(f"📄 Processing {source_name} from {url}...")
+    print(f"[INFO] Processing {source_name} from {url}...")
 
     raw_text = extract_visible_text(url)
     if not raw_text:
@@ -115,7 +115,7 @@ def process_web_url(url):
     chunks = chunk_text(raw_text, CHUNK_SIZE)
     total_chunks = 0
 
-    for chunk_index, chunk in enumerate(tqdm(chunks, desc=f"🧠 Processing {source_name} chunks")):
+    for chunk_index, chunk in enumerate(tqdm(chunks, desc=f"[INFO] Processing {source_name} chunks")):
         if chunk.strip():  # Only process non-empty chunks
             embedding = embedder.encode(chunk).tolist()
             chunk_id = str(uuid.uuid4())
@@ -140,12 +140,12 @@ def process_web_url(url):
 
 # === MAIN LOGIC ===
 
-print("🚀 Starting web content ingestion from URLs...")
+print("[INFO] Starting web content ingestion from URLs...")
 grand_total = 0
 
 for url in WEB_URLS:
     chunks_added = process_web_url(url)
     grand_total += chunks_added
-    print(f"✅ Added {chunks_added} chunks from {get_source_name(url)}")
+    print(f"[SUCCESS] Added {chunks_added} chunks from {get_source_name(url)}")
 
-print(f"\n🎉 Ingestion complete! Total chunks added: {grand_total}")
+print(f"\n[SUCCESS] Ingestion complete! Total chunks added: {grand_total}")

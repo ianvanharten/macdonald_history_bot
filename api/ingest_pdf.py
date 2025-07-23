@@ -24,7 +24,7 @@ COLLECTION_NAME = "macdonald_speeches"
 PERSIST_DIR = "./chroma_store"
 
 # === SETUP ===
-print("🔧 Loading embedding model and ChromaDB...")
+print("[INFO] Loading embedding model and ChromaDB...")
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 client = chromadb.PersistentClient(path=PERSIST_DIR)
@@ -48,7 +48,7 @@ def get_source_name(url):
 
 def extract_pdf_from_url(url):
     """Download PDF from URL and extract text"""
-    print(f"📄 Downloading PDF from {url}...")
+    print(f"[INFO] Downloading PDF from {url}...")
     try:
         response = requests.get(url, timeout=30)
         response.raise_for_status()
@@ -66,16 +66,16 @@ def extract_pdf_from_url(url):
         return all_pages
 
     except requests.exceptions.RequestException as e:
-        print(f"❌ Error downloading PDF from {url}: {e}")
+        print(f"[ERROR] Error downloading PDF from {url}: {e}")
         return []
     except Exception as e:
-        print(f"❌ Error processing PDF from {url}: {e}")
+        print(f"[ERROR] Error processing PDF from {url}: {e}")
         return []
 
 def process_pdf_url(url):
     """Process a single PDF URL"""
     source_name = get_source_name(url)
-    print(f"📖 Processing {source_name} from {url}...")
+    print(f"[INFO] Processing {source_name} from {url}...")
 
     pages = extract_pdf_from_url(url)
     if not pages:
@@ -83,7 +83,7 @@ def process_pdf_url(url):
 
     total_chunks = 0
 
-    for page_number, text in tqdm(pages, desc=f"📄 Processing {source_name} pages"):
+    for page_number, text in tqdm(pages, desc=f"[INFO] Processing {source_name} pages"):
         chunks = chunk_text(text, CHUNK_SIZE)
         for chunk_index, chunk in enumerate(chunks):
             if chunk.strip():  # Only process non-empty chunks
@@ -111,12 +111,12 @@ def process_pdf_url(url):
 
 # === MAIN LOGIC ===
 
-print("🚀 Starting PDF ingestion from URLs...")
+print("[INFO] Starting PDF ingestion from URLs...")
 grand_total = 0
 
 for url in PDF_URLS:
     chunks_added = process_pdf_url(url)
     grand_total += chunks_added
-    print(f"✅ Added {chunks_added} chunks from {get_source_name(url)}")
+    print(f"[SUCCESS] Added {chunks_added} chunks from {get_source_name(url)}")
 
-print(f"\n🎉 Ingestion complete! Total chunks added: {grand_total}")
+print(f"\n[SUCCESS] Ingestion complete! Total chunks added: {grand_total}")
