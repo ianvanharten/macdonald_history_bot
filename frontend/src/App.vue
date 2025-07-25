@@ -106,12 +106,21 @@ body {
 
 .nav-link:hover {
   color: #2c2c2c;
-  background-color: #f8f8f8;
+}
+
+.nav-link:hover::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background-color: #2c2c2c;
 }
 
 .nav-link.active {
   color: #2c2c2c;
-  background-color: #f0f8ff;
 }
 
 .nav-link.active::after {

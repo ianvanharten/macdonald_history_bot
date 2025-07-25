@@ -38,12 +38,12 @@
         </div>
 
         <!-- Current active question input (only if under 3 questions) -->
-        <div v-if="conversationHistory.length < 3">
+        <div v-if="conversationHistory.length < 3" ref="activeInputSection">
           <h3 v-if="conversationHistory.length > 0" class="follow-up-title">Ask Another Question</h3>
           <QuestionInput
             @question-submitted="handleQuestionSubmitted"
             :is-loading="isLoading"
-            :current-question="currentQuestion"
+            :current-question="''"
             :is-disabled="false"
           />
         </div>
@@ -51,7 +51,8 @@
     </main>
 
     <footer class="footer">
-      <p>Responses based on historical documents and speeches from the 19th century</p>
+      <p>Responses based on <router-link to="/sources" class="footer-link">historical documents</router-link> and speeches from the 19th century</p>
+      <p class="creator-credit">Created by Ian Van Harten</p>
     </footer>
   </div>
 </template>
@@ -74,14 +75,21 @@ export default {
     const currentQuestion = ref('')
     const isLoading = ref(false)
     const conversationHistory = reactive([])
+    const activeInputSection = ref(null)
 
-    const scrollToBottom = () => {
+    const scrollToResponse = () => {
       nextTick(() => {
         setTimeout(() => {
-          window.scrollTo({
-            top: document.body.scrollHeight,
-            behavior: 'smooth'
-          })
+          if (activeInputSection.value) {
+            // Scroll to just below the input section, showing the start of the response
+            const inputRect = activeInputSection.value.getBoundingClientRect()
+            const scrollTarget = window.pageYOffset + inputRect.bottom + 20 // 20px padding
+
+            window.scrollTo({
+              top: scrollTarget,
+              behavior: 'smooth'
+            })
+          }
         }, 100)
       })
     }
@@ -89,14 +97,14 @@ export default {
     const handleQuestionSubmitted = async (data) => {
       // Handle both old format (string) and new format (object) for compatibility
       const question = typeof data === 'string' ? data : data.question
-      const model = typeof data === 'string' ? 'google/gemini-2.0-flash-exp:free' : data.model
 
       // Don't allow more than 3 questions
       if (conversationHistory.length >= 3) {
         return
       }
 
-      currentQuestion.value = question
+      // Clear currentQuestion so the next input will be empty
+      currentQuestion.value = ''
       isLoading.value = true
 
       // Add new conversation pair
@@ -109,13 +117,12 @@ export default {
       }
       conversationHistory.push(newPair)
 
-      // Scroll to show the new question
-      scrollToBottom()
+      // Scroll to show the start of where the response will appear
+      scrollToResponse()
 
       try {
         const result = await axios.post('http://localhost:8000/ask', {
-          question: question,
-          model: model
+          question: question
         })
 
         // Check if the response contains an error field (backend-handled errors)
@@ -140,9 +147,6 @@ export default {
           // If no error, process the successful response
           newPair.response = result.data
         }
-
-        // Scroll to response after it loads
-        scrollToBottom()
 
       } catch (err) {
         // Handle HTTP-level errors (network issues, etc.)
@@ -175,6 +179,7 @@ export default {
       currentQuestion,
       isLoading,
       conversationHistory,
+      activeInputSection,
       handleQuestionSubmitted
     }
   }
@@ -199,7 +204,7 @@ export default {
 
 .title {
   font-family: 'Cormorant Garamond', serif;
-  font-size: clamp(3rem, 4.5vw, 4.2rem);
+  font-size: clamp(2.5rem, 3.5vw, 3.2rem);
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 1.5rem;
@@ -295,6 +300,22 @@ export default {
   font-size: 0.9rem;
 }
 
+.footer-link {
+  color: #666;
+  text-decoration: underline;
+  transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+  color: #2c2c2c;
+}
+
+.creator-credit {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #999;
+}
+
 @media (max-width: 768px) {
   .home-page {
     padding: 0 15px;
@@ -305,7 +326,7 @@ export default {
   }
 
   .title {
-    font-size: 2.5rem;
+    font-size: 2rem;
   }
 
   .portrait {
