@@ -3,11 +3,16 @@ import os
 import re
 import requests
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+
+# Imports for rate limiting
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Load environment variables
 load_dotenv()
@@ -132,6 +137,22 @@ You may use the following memories and details to inform your response:
 User's question:
 {question}
 """
+# --- Rate Limiting Setup ---
+
+# Create a limiter instance that uses the client's IP address as the identifier
+limiter = Limiter(key_func=get_remote_address)
+
+app = FastAPI()
+
+# Register the limiter with the app
+# This sets the default rate limit for all routes decorated with @limiter.limit
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# --- End Rate Limiting Setup ---
+
+
 # Load embedding model (same one used for indexing)
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -139,7 +160,6 @@ embedder = SentenceTransformer("all-MiniLM-L6-v2")
 chroma_client = chromadb.PersistentClient(path="./chroma_store")
 collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
-app = FastAPI()
 
 # Add CORS middleware
 app.add_middleware(
@@ -159,8 +179,9 @@ def read_root():
     return {"message": "Welcome to the John A. Macdonald chatbot API."}
 
 @app.post("/ask")
-def ask_macdonald(request: QuestionRequest):
-    question_embedding = embedder.encode(request.question).tolist()
+@limiter.limit("10/minute")  # Apply a rate limit of 10 requests per minute to this endpoint
+def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corrected function signature
+    question_embedding = embedder.encode(question_request.question).tolist()
 
     # Increase results to get more historical context
     results = collection.query(
@@ -169,7 +190,7 @@ def ask_macdonald(request: QuestionRequest):
     )
 
     chunks = list(zip(results["documents"][0], results["metadatas"][0]))
-    prompt = format_prompt(chunks, request.question)
+    prompt = format_prompt(chunks, question_request.question)
 
     # Use OpenRouter with better error handling
     try:
@@ -180,7 +201,7 @@ def ask_macdonald(request: QuestionRequest):
                 "Content-Type": "application/json",
             },
             data=json.dumps({
-                "model": request.model,  # Use the selected model
+                "model": question_request.model,  # Use the selected model
                 "messages": [
                     {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging. IMPORTANT: Respond ONLY in English. Do not use any other languages or characters."},
                     {"role": "user", "content": prompt}
@@ -227,7 +248,7 @@ def ask_macdonald(request: QuestionRequest):
     main_response = answer.strip()
 
     return {
-        "question": request.question,
+        "question": question_request.question,
         "answer": main_response,
         "sources": [
             {
