@@ -58,8 +58,6 @@ export default {
   emits: ['question-submitted'],
   setup(props, { emit }) {
     const question = ref('')
-    // Hardcoded model - using Google Gemini 2.0 Flash
-    const model = 'google/gemini-2.0-flash-exp:free'
 
     // Watch for changes in currentQuestion to update the input when suggestions are clicked
     watch(() => props.currentQuestion, (newQuestion) => {
@@ -78,8 +76,7 @@ export default {
     const submitQuestion = () => {
       if (question.value.trim() && !props.isLoading && !props.isDisabled) {
         emit('question-submitted', {
-          question: question.value.trim(),
-          model: model
+          question: question.value.trim()
         })
         question.value = '' // Clear the input after submission
       }
