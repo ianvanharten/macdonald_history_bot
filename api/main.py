@@ -7,6 +7,7 @@ import time # Import the time module to calculate latency
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
@@ -18,6 +19,8 @@ from slowapi.errors import RateLimitExceeded
 
 # Import the usage logger
 from usage_logger import setup_database, log_request
+# Import the new share handler
+from share_handler import setup_share_database, create_share_link, get_shared_link
 
 
 # Load environment variables
@@ -34,6 +37,7 @@ async def startup_event():
     This function is called when the FastAPI application starts.
     """
     setup_database()
+    setup_share_database()
 
 
 def clean_duplicated_text(text):
@@ -149,11 +153,16 @@ app.add_middleware(
 class QuestionRequest(BaseModel):
     question: str
 
+class ShareRequest(BaseModel):
+    question: str
+    answer: str
+    sources: list
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the John A. Macdonald chatbot API."}
 
-@app.post("/ask")
+@app.post("/api/ask") # Prefixed with /api
 @limiter.limit("10/minute")  # Apply a rate limit of 10 requests per minute to this endpoint
 def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corrected function signature
 
@@ -268,6 +277,40 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
             for doc, meta in zip(results["documents"][0], results["metadatas"][0])
         ]
     }
+
+
+# --- Share Link Endpoints ---
+
+@app.post("/api/share")
+async def share_conversation(share_request: ShareRequest):
+    """
+    Creates a permanent, shareable link for a given conversation.
+    """
+    share_id = create_share_link(
+        question=share_request.question,
+        answer=share_request.answer,
+        sources=share_request.sources
+    )
+    if share_id:
+        return {"share_id": share_id}
+    else:
+        return JSONResponse(status_code=500, content={"error": "Could not create share link."})
+
+@app.get("/api/share/{share_id}")
+async def get_conversation(share_id: str):
+    """
+    Retrieves a shared conversation by its unique ID.
+    """
+    shared_data = get_shared_link(share_id)
+    if shared_data:
+        return shared_data
+    else:
+        return JSONResponse(status_code=404, content={"error": "Shared conversation not found."})
+
+
+# --- Frontend Serving ---
+
+# Define the path to the built frontend files
 
 
 
