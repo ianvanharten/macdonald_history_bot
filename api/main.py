@@ -19,67 +19,26 @@ load_dotenv()
 
 def clean_duplicated_text(text):
     """
-    Clean up text that has been duplicated during OCR processing.
-    This removes repetitive patterns where the same text appears multiple times.
+    A more robust function to clean duplicated phrases from OCR'd text.
+    It iteratively removes sequences of 15+ characters that are repeated back-to-back.
     """
-    if not text or len(text) < 20:
-        return text
+    if not text:
+        return ""
 
-    # Split text into sentences for processing
-    sentences = re.split(r'[.!?]+', text)
-    cleaned_sentences = []
+    previous_text = ""
+    # Loop until no more changes are made, to handle multiple nested duplications (e.g., "A A A")
+    while text != previous_text:
+        previous_text = text
+        # This regex finds a sequence of 15+ characters (group 1) followed by
+        # optional whitespace/periods, and then the exact same sequence again.
+        # It replaces the entire match with just the first instance of the sequence.
+        # It's case-insensitive.
+        text = re.sub(r'\b(.{15,})\b([.\s]*)\1', r'\1', text, flags=re.IGNORECASE)
 
-    for sentence in sentences:
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-
-        # Check for repeated phrases within the sentence
-        words = sentence.split()
-        if len(words) < 3:
-            cleaned_sentences.append(sentence)
-            continue
-
-        # Look for repeated sequences of words
-        cleaned_words = []
-        i = 0
-        while i < len(words):
-            # Check for immediate repetition of word sequences
-            found_repetition = False
-
-            # Check for sequences of 3-10 words that repeat
-            for seq_len in range(3, min(11, len(words) - i + 1)):
-                if i + seq_len * 2 <= len(words):
-                    sequence1 = words[i:i + seq_len]
-                    sequence2 = words[i + seq_len:i + seq_len * 2]
-
-                    # If we find a repeated sequence, take only the first occurrence
-                    if sequence1 == sequence2:
-                        cleaned_words.extend(sequence1)
-                        i += seq_len * 2
-                        found_repetition = True
-                        break
-
-            if not found_repetition:
-                cleaned_words.append(words[i])
-                i += 1
-
-        cleaned_sentence = ' '.join(cleaned_words)
-        if cleaned_sentence:
-            cleaned_sentences.append(cleaned_sentence)
-
-    # Rejoin sentences
-    result = '. '.join(cleaned_sentences)
-
-    # Clean up any remaining patterns
-    # Remove cases where the same phrase appears 3+ times consecutively
-    result = re.sub(r'\b(.{10,}?)\1{2,}\b', r'\1', result)
-
-    # Clean up extra spaces and punctuation
-    result = re.sub(r'\s+', ' ', result)
-    result = re.sub(r'[.]{2,}', '.', result)
-
-    return result.strip()
+    # Final cleanup for any leftover whitespace issues.
+    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'\s+([?.!,])', r'\1', text) # remove space before punctuation
+    return text
 
 def format_prompt(chunks, question):
     """
