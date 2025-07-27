@@ -17,28 +17,24 @@
           <p>The following historical excerpts informed Sir John's response:</p>
         </div>
 
-        <div class="source-list">
-          <div
+        <ul class="source-list">
+          <li
             v-for="(source, index) in sources"
             :key="index"
             class="source-item"
           >
-            <div class="source-quote">
-              "{{ source.quote }}"
-            </div>
-
             <div class="source-citation">
               <span class="source-document">{{ formatSourceName(source.source) }}</span>
               <span class="source-details">
-                Page {{ source.page }} • {{ source.year }}
+                Parliament {{ source.parliament }}, Session {{ source.session }} &mdash; Page {{ source.page }} ({{ source.year }})
               </span>
             </div>
-          </div>
-        </div>
+          </li>
+        </ul>
 
         <div class="references-footer">
           <p class="disclaimer">
-            <em>Historical excerpts are presented as they appear in the original documents.</em>
+            <em>For more on the historical sources used, go to the <router-link class="references-link" to="/sources">sources page</router-link>.</em>
           </p>
         </div>
       </div>
@@ -139,24 +135,15 @@ export default {
 .source-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
+  list-style: none;
+  padding-left: 0;
 }
 
 .source-item {
-  border-left: 4px solid #2c2c2c;
+  border-left: 3px solid #ccc;
+  padding: 0.5rem 1rem;
   background: #fff;
-  padding: 2rem;
-  margin-bottom: 1rem;
-}
-
-.source-quote {
-  font-family: 'EB Garamond', serif;
-  font-size: 1.2rem;
-  line-height: 1.7;
-  color: #2c2c2c;
-  margin-bottom: 1rem;
-  font-style: italic;
-  text-align: justify;
 }
 
 .source-citation {
@@ -180,6 +167,10 @@ export default {
   margin-top: 2rem;
   padding-top: 2rem;
   text-align: center;
+}
+
+a.references-link {
+  color: #2c2c2c;
 }
 
 .disclaimer {
@@ -220,21 +211,12 @@ export default {
     border-left-width: 3px;
   }
 
-  .source-quote {
-    font-size: 1.1rem;
-    line-height: 1.6;
-  }
-
   .source-citation {
     font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
-  .source-quote {
-    text-align: left;
-  }
-
   .source-citation {
     flex-direction: column;
     gap: 0.1rem;

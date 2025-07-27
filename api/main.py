@@ -210,10 +210,12 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         "answer": main_response,
         "sources": [
             {
-                "quote": clean_duplicated_text(doc),  # Clean the source quotes for display
+                "quote": clean_duplicated_text(doc),  # We still send it, but won't display it
                 "source": meta.get("source", "Unknown source"),
                 "page": meta.get("page", "Unknown"),
-                "year": meta.get("year", "Unknown year")
+                "year": meta.get("year", "Unknown year"),
+                "parliament": meta.get("parliament"),
+                "session": meta.get("session")
             }
             for doc, meta in zip(results["documents"][0], results["metadatas"][0])
         ]
