@@ -28,40 +28,60 @@ def get_embedding(text):
     return model.encode(text).tolist()
 
 # Main loop to embed and store
-def embed_and_store(chunks):
-    for i, chunk in enumerate(tqdm(chunks)):
+def embed_and_store(chunks, batch_size=128):
+    for i in tqdm(range(0, len(chunks), batch_size), desc="Embedding batches"):
+        batch = chunks[i:i + batch_size]
+
+        ids = []
+        contents = []
+        metadatas = []
+
+        for chunk in batch:
+            try:
+                # More descriptive chunk ID that includes parliament and session
+                chunk_id = f"parl_{chunk.get('parliament', 'unknown')}_sess_{chunk.get('session', 'unknown')}_{chunk['source']}_{chunk['page']}_{chunk['chunk_index']}"
+
+                # Build metadata - include all available fields
+                metadata = {
+                    "speaker": chunk["speaker"],
+                    "parliament": chunk.get("parliament"),
+                    "session": chunk.get("session"),
+                    "year": chunk["year"],
+                    "page": chunk["page"],
+                    "source": chunk["source"],
+                    "chunk_index": chunk["chunk_index"]
+                }
+
+                # Only add volume if it exists
+                if "volume" in chunk and chunk["volume"] is not None:
+                    metadata["volume"] = chunk["volume"]
+
+                ids.append(chunk_id)
+                contents.append(chunk["content"])
+                metadatas.append(metadata)
+
+            except Exception as e:
+                print(f"❌ Failed to process chunk, skipping: {e}")
+                print(f"   Chunk data: {chunk}")
+
+        if not ids:
+            continue
+
         try:
-            # More descriptive chunk ID that includes parliament and session
-            chunk_id = f"parl_{chunk.get('parliament', 'unknown')}_sess_{chunk.get('session', 'unknown')}_{chunk['source']}_{chunk['page']}_{chunk['chunk_index']}"
-            embedding = get_embedding(chunk["content"])
-
-            # Build metadata - include all available fields
-            metadata = {
-                "speaker": chunk["speaker"],
-                "parliament": chunk.get("parliament"),
-                "session": chunk.get("session"),
-                "year": chunk["year"],
-                "page": chunk["page"],
-                "source": chunk["source"],
-                "chunk_index": chunk["chunk_index"]
-            }
-
-            # Only add volume if it exists
-            if "volume" in chunk and chunk["volume"] is not None:
-                metadata["volume"] = chunk["volume"]
+            # Batch generate embeddings and add to collection
+            embeddings = model.encode(contents).tolist()
 
             collection.add(
-                ids=[chunk_id],
-                embeddings=[embedding],
-                documents=[chunk["content"]],
-                metadatas=[metadata]
+                ids=ids,
+                embeddings=embeddings,
+                documents=contents,
+                metadatas=metadatas
             )
         except Exception as e:
-            print(f"❌ Failed to embed chunk {i}: {e}")
-            print(f"   Chunk data: {chunk}")  # Debug info
+            print(f"[ERROR] Failed to embed batch starting at index {i}: {e}")
 
 if __name__ == "__main__":
     chunk_folder = "./output"  # Folder containing your JSON files
     chunks = load_chunks(chunk_folder)
     embed_and_store(chunks)
-    print("✅ Embedding complete! Stored in ./chroma_store")
+    print("[SUCCESS] Embedding complete! Stored in ./chroma_store")
