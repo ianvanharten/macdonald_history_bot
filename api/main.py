@@ -3,8 +3,10 @@ import os
 import re
 import requests
 import json
+import time # Import the time module to calculate latency
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
@@ -14,8 +16,25 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+# Import the usage logger
+from usage_logger import setup_database, log_request
+
+
 # Load environment variables
 load_dotenv()
+
+# --- FastAPI App Initialization ---
+# This MUST come before any @app decorators
+app = FastAPI()
+
+# --- Application Startup Event ---
+@app.on_event("startup")
+async def startup_event():
+    """
+    This function is called when the FastAPI application starts.
+    """
+    setup_database()
+
 
 def clean_duplicated_text(text):
     """
@@ -101,8 +120,6 @@ User's question:
 # Create a limiter instance that uses the client's IP address as the identifier
 limiter = Limiter(key_func=get_remote_address)
 
-app = FastAPI()
-
 # Register the limiter with the app
 # This sets the default rate limit for all routes decorated with @limiter.limit
 app.state.limiter = limiter
@@ -139,6 +156,13 @@ def read_root():
 @app.post("/ask")
 @limiter.limit("10/minute")  # Apply a rate limit of 10 requests per minute to this endpoint
 def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corrected function signature
+
+    # --- Start Usage Logging ---
+    start_time = time.time()
+    user_ip = get_remote_address(request)
+    model_used = "google/gemini-2.0-flash-001"
+    # --- End Usage Logging ---
+
     question_embedding = embedder.encode(question_request.question).tolist()
 
     # Increase results to get more historical context
@@ -159,7 +183,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
                 "Content-Type": "application/json",
             },
             data=json.dumps({
-                "model": "google/gemini-2.0-flash-001",  # Fixed model, no longer from request
+                "model": model_used,
                 "messages": [
                     {"role": "system", "content": "You are Sir John A. Macdonald, Canada's first Prime Minister. You are an experienced educator and statesman who enjoys sharing comprehensive historical knowledge. Your responses should be thorough, informative, and engaging. IMPORTANT: Respond ONLY in English. Do not use any other languages or characters."},
                     {"role": "user", "content": prompt}
@@ -175,25 +199,49 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
 
         # Parse the response
         response_data = response.json()
+        latency = int((time.time() - start_time) * 1000)
 
-        # Debug: Print the response structure
-        print("API Response:", response_data)
+        # Extract usage data from the response
+        usage = response_data.get("usage", {})
+        prompt_tokens = usage.get("prompt_tokens")
+        completion_tokens = usage.get("completion_tokens")
+        total_tokens = usage.get("total_tokens")
 
         # Check if response has expected structure
-        if "choices" not in response_data:
-            print("Error: No 'choices' in response")
-            if "error" in response_data:
-                error_msg = response_data["error"].get("message", "Unknown error")
-                return {"error": f"API Error: {error_msg}"}
-            else:
-                return {"error": f"Unexpected response format: {response_data}"}
+        if "choices" not in response_data or not response_data["choices"]:
+            error_msg = "API response missing 'choices' field."
+            print(f"Error: {error_msg}")
+            log_request(
+                user_ip=user_ip, question=question_request.question, is_successful=False,
+                latency_ms=latency, error_message=f"Unexpected response format: {response_data}"
+            )
+            return {"error": f"Unexpected response format: {response_data}"}
 
         # Extract the answer
         answer = response_data["choices"][0]["message"]["content"]
 
+        # Log the successful request
+        log_request(
+            user_ip=user_ip,
+            question=question_request.question,
+            is_successful=True,
+            llm_response=answer,
+            llm_model_used=model_used,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency_ms=latency
+        )
+
     except requests.exceptions.RequestException as e:
-        print(f"Request failed: {e}")
-        return {"error": f"Request failed: {str(e)}"}
+        latency = int((time.time() - start_time) * 1000)
+        error_msg = f"Request failed: {str(e)}"
+        print(error_msg)
+        log_request(
+            user_ip=user_ip, question=question_request.question, is_successful=False,
+            latency_ms=latency, error_message=error_msg
+        )
+        return {"error": error_msg}
     except KeyError as e:
         print(f"KeyError: {e}")
         print(f"Response data: {response_data}")
