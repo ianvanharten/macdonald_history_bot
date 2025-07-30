@@ -121,7 +121,7 @@ export default {
       scrollToResponse()
 
       try {
-        const result = await axios.post('http://localhost:8000/ask', {
+        const result = await axios.post('http://localhost:8000/api/ask', {
           question: question
         })
 

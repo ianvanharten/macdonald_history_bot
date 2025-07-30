@@ -26,6 +26,15 @@
         <div class="journal-footer">
           <div class="ornamental-line"></div>
         </div>
+
+        <!-- Share Button -->
+        <div class="share-container">
+          <button @click="handleShare" :disabled="isSharing || justShared" class="share-button">
+            <span v-if="isSharing">Creating Link...</span>
+            <span v-else-if="justShared">✓ Copied to Clipboard</span>
+            <span v-else>Share this Response</span>
+          </button>
+        </div>
       </div>
     </transition>
 
@@ -47,8 +56,9 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref } from 'vue' // Import ref
 import MarkdownIt from 'markdown-it'
+import axios from 'axios' // Import axios
 
 export default {
   name: 'MacdonaldResponse',
@@ -63,6 +73,10 @@ export default {
     }
   },
   setup(props) {
+    // --- Share state ---
+    const isSharing = ref(false)
+    const justShared = ref(false)
+
     // Initialize markdown parser
     const md = new MarkdownIt({
       html: true,
@@ -123,9 +137,41 @@ export default {
         .map(p => md.renderInline(p)) // Convert markdown to HTML
     })
 
+    const handleShare = async () => {
+      if (!props.response) return
+      isSharing.value = true
+
+      try {
+        const response = await axios.post('/api/share', {
+          question: props.response.question,
+          answer: props.response.answer,
+          sources: props.response.sources
+        })
+
+        const shareId = response.data.share_id
+        const shareUrl = `${window.location.origin}/c/${shareId}`
+
+        await navigator.clipboard.writeText(shareUrl)
+
+        justShared.value = true
+        setTimeout(() => {
+          justShared.value = false
+        }, 3000) // Reset after 3 seconds
+
+      } catch (error) {
+        console.error('Failed to create share link:', error)
+        // Optionally, show an error message to the user
+      } finally {
+        isSharing.value = false
+      }
+    }
+
     return {
       formattedDate,
-      formattedParagraphs
+      formattedParagraphs,
+      isSharing,
+      justShared,
+      handleShare
     }
   }
 }
@@ -239,6 +285,34 @@ export default {
 .journal-footer {
   margin-top: 2rem;
   text-align: center;
+}
+
+.share-container {
+  text-align: center;
+  margin-top: 2rem;
+  padding-bottom: 2rem; /* Add padding to give it space */
+}
+
+.share-button {
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  font-family: sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 150px; /* Give it a minimum width to prevent size jumping */
+}
+
+.share-button:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  border-color: #bbb;
+}
+
+.share-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* Simplified Loading State */
