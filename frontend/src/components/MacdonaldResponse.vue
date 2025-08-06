@@ -142,7 +142,7 @@ export default {
       isSharing.value = true
 
       try {
-        const response = await axios.post('/api/share', {
+        const response = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/share`, {
           question: props.response.question,
           answer: props.response.answer,
           sources: props.response.sources

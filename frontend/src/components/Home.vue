@@ -121,7 +121,7 @@ export default {
       scrollToResponse()
 
       try {
-        const result = await axios.post('http://localhost:8000/api/ask', {
+        const result = await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/ask`, {
           question: question
         })
 

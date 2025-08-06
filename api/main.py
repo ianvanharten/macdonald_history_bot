@@ -26,6 +26,9 @@ from share_handler import setup_share_database, create_share_link, get_shared_li
 # Load environment variables
 load_dotenv()
 
+# --- Environment Variables Configuration ---
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
 # --- FastAPI App Initialization ---
 # This MUST come before any @app decorators
 app = FastAPI()
@@ -141,10 +144,10 @@ chroma_client = chromadb.PersistentClient(path="./chroma_store")
 collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
 
-# Add CORS middleware
+# Add CORS middleware with configurable frontend URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend URL
+    allow_origins=[FRONTEND_URL],  # Now configurable via environment variable
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],

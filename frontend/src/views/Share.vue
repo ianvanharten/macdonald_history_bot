@@ -66,7 +66,7 @@ export default {
       }
 
       try {
-        const result = await axios.get(`/api/share/${shareId}`)
+        const result = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/share/${shareId}`)
         conversation.value = result.data
       } catch (err) {
         error.value = 'This shared conversation could not be found or has been removed.'
