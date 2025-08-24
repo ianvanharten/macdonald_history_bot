@@ -46,6 +46,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import MarkdownIt from 'markdown-it'
+import DOMPurify from 'dompurify'
 
 export default {
   name: 'Share',
@@ -78,7 +79,7 @@ export default {
 
     const formattedAnswer = computed(() => {
         if (conversation.value && conversation.value.answer) {
-            return md.render(conversation.value.answer);
+            return DOMPurify.sanitize(md.render(conversation.value.answer));
         }
         return '';
     });

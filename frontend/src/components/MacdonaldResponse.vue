@@ -59,6 +59,7 @@
 import { computed, ref } from 'vue' // Import ref
 import MarkdownIt from 'markdown-it'
 import axios from 'axios' // Import axios
+import DOMPurify from 'dompurify' // Add this import
 
 export default {
   name: 'MacdonaldResponse',
@@ -133,7 +134,7 @@ export default {
       return paragraphs
         .map(p => p.trim())
         .filter(p => p.length > 0)
-        .map(p => md.renderInline(p)) // Convert markdown to HTML
+        .map(p => DOMPurify.sanitize(md.renderInline(p))) // Add DOMPurify.sanitize here
     })
 
     const handleShare = async () => {
