@@ -5,7 +5,7 @@ import requests
 import json
 import time # Import the time module to calculate latency
 import sqlite3
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
@@ -23,6 +23,8 @@ from usage_logger import setup_database, log_request
 # Import the new share handler
 from share_handler import setup_share_database, create_share_link, get_shared_link
 
+import threading
+from contextlib import contextmanager
 
 # Load environment variables
 load_dotenv()
@@ -35,10 +37,38 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app = FastAPI()
 
 # --- Database Connection Management ---
-# Establish a persistent database connection for the entire application lifecycle.
-# This avoids the overhead and potential locking issues of opening/closing connections on each request.
 DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')
-db_connection = sqlite3.connect(DB_PATH, check_same_thread=False)
+
+# Thread-local storage for connections
+db_local = threading.local()
+
+@contextmanager
+def get_db_connection():
+    """
+    Get a thread-safe database connection.
+    Each thread gets its own connection to avoid race conditions.
+    """
+    if not hasattr(db_local, 'connection') or db_local.connection is None:
+        db_local.connection = sqlite3.connect(DB_PATH)
+        # Enable WAL mode for better concurrency
+        db_local.connection.execute("PRAGMA journal_mode=WAL")
+        db_local.connection.commit()
+
+    try:
+        yield db_local.connection
+    except Exception:
+        # Rollback on error
+        db_local.connection.rollback()
+        raise
+    finally:
+        # Connection stays open for reuse by this thread
+        pass
+
+# Dependency function for FastAPI
+def get_database():
+    """FastAPI dependency to get database connection."""
+    with get_db_connection() as conn:
+        yield conn
 
 # --- Application Startup Event ---
 @app.on_event("startup")
@@ -46,17 +76,18 @@ async def startup_event():
     """
     This function is called when the FastAPI application starts.
     """
-    setup_database(db_connection)
-    setup_share_database(db_connection)
-
+    # Initialize database with a temporary connection
+    with get_db_connection() as conn:
+        setup_database(conn)
+        setup_share_database(conn)
 
 @app.on_event("shutdown")
 def shutdown_event():
     """
-    This function is called when the FastAPI application shuts down.
-    It ensures that the database connection is closed gracefully.
+    Clean up any open connections.
     """
-    db_connection.close()
+    if hasattr(db_local, 'connection') and db_local.connection:
+        db_local.connection.close()
 
 
 def clean_duplicated_text(text):
@@ -213,7 +244,11 @@ def read_root():
 
 @app.post("/api/ask") # Prefixed with /api
 @limiter.limit("10/minute")  # Apply a rate limit of 10 requests per minute to this endpoint
-def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corrected function signature
+def ask_macdonald(
+    question_request: QuestionRequest,
+    request: Request,
+    db: sqlite3.Connection = Depends(get_database)  # Add this dependency
+):
 
     # --- Start Usage Logging ---
     start_time = time.time()
@@ -271,7 +306,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
             print(f"Error: {error_msg}")
             print(f"Detailed response data: {response_data}")  # Log for debugging
             log_request(
-                conn=db_connection,
+                conn=db,
                 user_ip=user_ip, question=question_request.question, is_successful=False,
                 latency_ms=latency, error_message=f"Unexpected response format: {response_data}"
             )
@@ -282,7 +317,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
 
         # Log the successful request
         log_request(
-            conn=db_connection,
+            conn=db,
             user_ip=user_ip,
             question=question_request.question,
             is_successful=True,
@@ -299,7 +334,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         error_msg = f"Request failed: {str(e)}"
         print(error_msg)
         log_request(
-            conn=db_connection,
+            conn=db,
             user_ip=user_ip, question=question_request.question, is_successful=False,
             latency_ms=latency, error_message=error_msg
         )
@@ -308,7 +343,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         print(f"KeyError: {e}")
         print(f"Response data: {response_data}")  # Keep detailed logging
         log_request(
-            conn=db_connection,
+            conn=db,
             user_ip=user_ip, question=question_request.question, is_successful=False,
             latency_ms=latency, error_message=f"KeyError: {e}, Response: {response_data}"
         )
@@ -316,7 +351,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
     except Exception as e:
         print(f"Unexpected error: {e}")  # Keep detailed logging
         log_request(
-            conn=db_connection,
+            conn=db,
             user_ip=user_ip, question=question_request.question, is_successful=False,
             latency_ms=latency, error_message=f"Unexpected error: {str(e)}"
         )
@@ -345,12 +380,15 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
 # --- Share Link Endpoints ---
 
 @app.post("/api/share")
-async def share_conversation(share_request: ShareRequest):
+async def share_conversation(
+    share_request: ShareRequest,
+    db: sqlite3.Connection = Depends(get_database)  # Add this dependency
+):
     """
     Creates a permanent, shareable link for a given conversation.
     """
     share_id = create_share_link(
-        conn=db_connection,
+        conn=db,  # Change from db_connection to db
         question=share_request.question,
         answer=share_request.answer,
         sources=share_request.sources
@@ -361,11 +399,14 @@ async def share_conversation(share_request: ShareRequest):
         return JSONResponse(status_code=500, content={"error": "Could not create share link."})
 
 @app.get("/api/share/{share_id}")
-async def get_conversation(share_id: str):
+async def get_conversation(
+    share_id: str,
+    db: sqlite3.Connection = Depends(get_database)  # Add this dependency
+):
     """
     Retrieves a shared conversation by its unique ID.
     """
-    shared_data = get_shared_link(conn=db_connection, share_id=share_id)
+    shared_data = get_shared_link(conn=db, share_id=share_id)  # Change from db_connection to db
     if shared_data:
         return shared_data
     else:
