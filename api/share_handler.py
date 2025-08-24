@@ -33,12 +33,11 @@ def setup_share_database():
         if conn:
             conn.close()
 
-def create_share_link(question: str, answer: str, sources: list) -> str:
+def create_share_link(conn: sqlite3.Connection, question: str, answer: str, sources: list) -> str:
     """
     Saves a Q&A pair to the database and returns a unique share ID.
     """
     try:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
 
         # Generate a new, unique share_id that is not already in the database
@@ -60,16 +59,12 @@ def create_share_link(question: str, answer: str, sources: list) -> str:
     except sqlite3.Error as e:
         print(f"[ERROR] Failed to create share link: {e}")
         return None
-    finally:
-        if conn:
-            conn.close()
 
-def get_shared_link(share_id: str):
+def get_shared_link(conn: sqlite3.Connection, share_id: str):
     """
     Retrieves a shared Q&A pair from the database by its ID.
     """
     try:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
         cursor.execute("SELECT question, answer, sources FROM shares WHERE share_id = ?", (share_id,))
         record = cursor.fetchone()
@@ -84,6 +79,3 @@ def get_shared_link(share_id: str):
     except (sqlite3.Error, json.JSONDecodeError) as e:
         print(f"[ERROR] Failed to retrieve or parse shared link: {e}")
         return None
-    finally:
-        if conn:
-            conn.close()

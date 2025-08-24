@@ -4,6 +4,7 @@ import re
 import requests
 import json
 import time # Import the time module to calculate latency
+import sqlite3
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -33,6 +34,12 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 # This MUST come before any @app decorators
 app = FastAPI()
 
+# --- Database Connection Management ---
+# Establish a persistent database connection for the entire application lifecycle.
+# This avoids the overhead and potential locking issues of opening/closing connections on each request.
+DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')
+db_connection = sqlite3.connect(DB_PATH, check_same_thread=False)
+
 # --- Application Startup Event ---
 @app.on_event("startup")
 async def startup_event():
@@ -41,6 +48,15 @@ async def startup_event():
     """
     setup_database()
     setup_share_database()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """
+    This function is called when the FastAPI application shuts down.
+    It ensures that the database connection is closed gracefully.
+    """
+    db_connection.close()
 
 
 def clean_duplicated_text(text):
@@ -224,6 +240,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
             error_msg = "API response missing 'choices' field."
             print(f"Error: {error_msg}")
             log_request(
+                conn=db_connection,
                 user_ip=user_ip, question=question_request.question, is_successful=False,
                 latency_ms=latency, error_message=f"Unexpected response format: {response_data}"
             )
@@ -234,6 +251,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
 
         # Log the successful request
         log_request(
+            conn=db_connection,
             user_ip=user_ip,
             question=question_request.question,
             is_successful=True,
@@ -250,6 +268,7 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         error_msg = f"Request failed: {str(e)}"
         print(error_msg)
         log_request(
+            conn=db_connection,
             user_ip=user_ip, question=question_request.question, is_successful=False,
             latency_ms=latency, error_message=error_msg
         )
@@ -290,6 +309,7 @@ async def share_conversation(share_request: ShareRequest):
     Creates a permanent, shareable link for a given conversation.
     """
     share_id = create_share_link(
+        conn=db_connection,
         question=share_request.question,
         answer=share_request.answer,
         sources=share_request.sources
@@ -304,7 +324,7 @@ async def get_conversation(share_id: str):
     """
     Retrieves a shared conversation by its unique ID.
     """
-    shared_data = get_shared_link(share_id)
+    shared_data = get_shared_link(conn=db_connection, share_id=share_id)
     if shared_data:
         return shared_data
     else:

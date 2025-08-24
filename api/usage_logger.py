@@ -46,6 +46,7 @@ def setup_database():
             conn.close()
 
 def log_request(
+    conn: sqlite3.Connection,  # Add SQLite connection object as a parameter
     user_ip: str,
     question: str,
     is_successful: bool,
@@ -58,10 +59,9 @@ def log_request(
     error_message: str = None
 ):
     """
-    Logs the details of a single API request to the SQLite database.
+    Logs the details of a single API request to the provided SQLite database connection.
     """
     try:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
 
         # Insert a new record into the logs table.
@@ -79,6 +79,3 @@ def log_request(
         conn.commit()
     except sqlite3.Error as e:
         print(f"[ERROR] Failed to log request to database: {e}")
-    finally:
-        if conn:
-            conn.close()
