@@ -239,12 +239,13 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         if "choices" not in response_data or not response_data["choices"]:
             error_msg = "API response missing 'choices' field."
             print(f"Error: {error_msg}")
+            print(f"Detailed response data: {response_data}")  # Log for debugging
             log_request(
                 conn=db_connection,
                 user_ip=user_ip, question=question_request.question, is_successful=False,
                 latency_ms=latency, error_message=f"Unexpected response format: {response_data}"
             )
-            return {"error": f"Unexpected response format: {response_data}"}
+            return {"error": "I'm experiencing technical difficulties. Please try again in a moment."}  # Generic message
 
         # Extract the answer
         answer = response_data["choices"][0]["message"]["content"]
@@ -275,11 +276,21 @@ def ask_macdonald(question_request: QuestionRequest, request: Request):  # Corre
         return {"error": error_msg}
     except KeyError as e:
         print(f"KeyError: {e}")
-        print(f"Response data: {response_data}")
-        return {"error": f"Unexpected response format: missing key {e}"}
+        print(f"Response data: {response_data}")  # Keep detailed logging
+        log_request(
+            conn=db_connection,
+            user_ip=user_ip, question=question_request.question, is_successful=False,
+            latency_ms=latency, error_message=f"KeyError: {e}, Response: {response_data}"
+        )
+        return {"error": "I'm experiencing technical difficulties. Please try again in a moment."}
     except Exception as e:
-        print(f"Unexpected error: {e}")
-        return {"error": f"Unexpected error: {str(e)}"}
+        print(f"Unexpected error: {e}")  # Keep detailed logging
+        log_request(
+            conn=db_connection,
+            user_ip=user_ip, question=question_request.question, is_successful=False,
+            latency_ms=latency, error_message=f"Unexpected error: {str(e)}"
+        )
+        return {"error": "I'm unable to respond at the moment. Please try again shortly."}
 
     # Clean up the response
     main_response = answer.strip()
