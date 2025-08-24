@@ -46,8 +46,8 @@ async def startup_event():
     """
     This function is called when the FastAPI application starts.
     """
-    setup_database()
-    setup_share_database()
+    setup_database(db_connection)
+    setup_share_database(db_connection)
 
 
 @app.on_event("shutdown")

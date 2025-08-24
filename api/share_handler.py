@@ -6,13 +6,12 @@ import json
 # Use the same database file as the usage logger for simplicity
 DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')
 
-def setup_share_database():
+def setup_share_database(conn: sqlite3.Connection):
     """
     Creates the 'shares' table in the database if it doesn't exist.
     This should be called on application startup.
     """
     try:
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
         # Ensure WAL mode is enabled, in case this runs before the logger setup.
         cursor.execute("PRAGMA journal_mode=WAL;")
@@ -29,9 +28,6 @@ def setup_share_database():
         print("[INFO] Share link database setup complete.")
     except sqlite3.Error as e:
         print(f"[ERROR] Share database setup failed: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 def create_share_link(conn: sqlite3.Connection, question: str, answer: str, sources: list) -> str:
     """

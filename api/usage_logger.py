@@ -5,14 +5,13 @@ from datetime import datetime
 # Define the path for the SQLite database file within the 'api' directory
 DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')
 
-def setup_database():
+def setup_database(conn: sqlite3.Connection):
     """
     Sets up the database connection and creates the 'logs' table if it doesn't exist.
     This function should be called once when the FastAPI application starts.
     """
     try:
         # The connection will create the database file if it doesn't exist.
-        conn = sqlite3.connect(DB_PATH, check_same_thread=False)
         cursor = conn.cursor()
 
         # Enable Write-Ahead Logging (WAL) for better concurrency.
@@ -41,9 +40,6 @@ def setup_database():
         print("[INFO] Usage monitoring database setup complete.")
     except sqlite3.Error as e:
         print(f"[ERROR] Database setup failed: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 def log_request(
     conn: sqlite3.Connection,  # Add SQLite connection object as a parameter

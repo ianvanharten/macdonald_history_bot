@@ -11,7 +11,7 @@
     <main class="main-content">
       <div class="conversation-container">
         <!-- Render all previous Q&A pairs -->
-        <div v-for="(pair, index) in conversationHistory" :key="index" class="conversation-pair">
+        <div v-for="pair in conversationHistory" :key="pair.id" class="conversation-pair">
           <QuestionInput
             :question-text="pair.question"
             :is-disabled="true"
@@ -80,8 +80,22 @@ export default {
     const scrollToResponse = () => {
       nextTick(() => {
         setTimeout(() => {
-          if (activeInputSection.value) {
-            // Scroll to just below the input section, showing the start of the response
+          // For the third question, scroll to the last conversation pair instead
+          if (!activeInputSection.value && conversationHistory.length === 3) {
+            // Find the last conversation pair element
+            const conversationPairs = document.querySelectorAll('.conversation-pair')
+            const lastPair = conversationPairs[conversationPairs.length - 1]
+            if (lastPair) {
+              const rect = lastPair.getBoundingClientRect()
+              const scrollTarget = window.pageYOffset + rect.top - 50 // 50px padding from top
+
+              window.scrollTo({
+                top: scrollTarget,
+                behavior: 'smooth'
+              })
+            }
+          } else if (activeInputSection.value) {
+            // Original logic for first two questions
             const inputRect = activeInputSection.value.getBoundingClientRect()
             const scrollTarget = window.pageYOffset + inputRect.bottom + 20 // 20px padding
 
@@ -107,14 +121,15 @@ export default {
       currentQuestion.value = ''
       isLoading.value = true
 
-      // Add new conversation pair
-      const newPair = {
+      // Add new conversation pair - make it reactive from the start
+      const newPair = reactive({
+        id: Date.now(), // Simple unique ID
         question: question,
         response: null,
         isLoading: true,
         error: '',
         errorType: ''
-      }
+      })
       conversationHistory.push(newPair)
 
       // Scroll to show the start of where the response will appear
