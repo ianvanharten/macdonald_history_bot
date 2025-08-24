@@ -64,8 +64,7 @@ export default {
   name: 'MacdonaldResponse',
   props: {
     response: {
-      type: Object,
-      required: true
+      type: Object
     },
     isLoading: {
       type: Boolean,
