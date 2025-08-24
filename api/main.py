@@ -9,7 +9,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
@@ -170,12 +170,42 @@ app.add_middleware(
 )
 
 class QuestionRequest(BaseModel):
-    question: str
+    question: str = Field(
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="User question about Canadian history"
+    )
+
+    @validator('question')
+    def validate_question(cls, v):
+        # Remove extra whitespace and validate
+        v = v.strip()
+        if not v:
+            raise ValueError('Question cannot be empty')
+
+        # Check for suspicious patterns (basic protection)
+        if any(suspicious in v.lower() for suspicious in ['<script', 'javascript:', 'data:', 'vbscript:']):
+            raise ValueError('Question contains invalid content')
+
+        return v
 
 class ShareRequest(BaseModel):
-    question: str
-    answer: str
-    sources: list
+    question: str = Field(..., min_length=1, max_length=1000, description="User question")
+    answer: str = Field(..., min_length=1, max_length=10000, description="AI response")
+    sources: list = Field(..., max_items=10, description="Source references")
+
+    @validator('question', 'answer')
+    def validate_text_fields(cls, v):
+        if not v.strip():
+            raise ValueError('Text fields cannot be empty')
+        return v.strip()
+
+    @validator('sources')
+    def validate_sources(cls, v):
+        if len(v) > 10:
+            raise ValueError('Too many source references')
+        return v
 
 @app.get("/")
 def read_root():
