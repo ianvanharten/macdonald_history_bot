@@ -380,15 +380,17 @@ def ask_macdonald(
 # --- Share Link Endpoints ---
 
 @app.post("/api/share")
+@limiter.limit("5/minute")  # Allow 5 share creations per minute per IP
 async def share_conversation(
     share_request: ShareRequest,
-    db: sqlite3.Connection = Depends(get_database)  # Add this dependency
+    request: Request,  # Add this for rate limiting
+    db: sqlite3.Connection = Depends(get_database)
 ):
     """
     Creates a permanent, shareable link for a given conversation.
     """
     share_id = create_share_link(
-        conn=db,  # Change from db_connection to db
+        conn=db,
         question=share_request.question,
         answer=share_request.answer,
         sources=share_request.sources
@@ -399,14 +401,16 @@ async def share_conversation(
         return JSONResponse(status_code=500, content={"error": "Could not create share link."})
 
 @app.get("/api/share/{share_id}")
+@limiter.limit("20/minute")  # Allow 20 share retrievals per minute per IP (more lenient since it's read-only)
 async def get_conversation(
     share_id: str,
-    db: sqlite3.Connection = Depends(get_database)  # Add this dependency
+    request: Request,  # Add this for rate limiting
+    db: sqlite3.Connection = Depends(get_database)
 ):
     """
     Retrieves a shared conversation by its unique ID.
     """
-    shared_data = get_shared_link(conn=db, share_id=share_id)  # Change from db_connection to db
+    shared_data = get_shared_link(conn=db, share_id=share_id)
     if shared_data:
         return shared_data
     else:
