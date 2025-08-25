@@ -26,11 +26,19 @@ from share_handler import setup_share_database, create_share_link, get_shared_li
 import threading
 from contextlib import contextmanager
 
+# Add these imports after your existing FastAPI imports (around line 8)
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+
 # Load environment variables
 load_dotenv()
 
 # --- Environment Variables Configuration ---
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Add this after loading environment variables (around line 32)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # --- FastAPI App Initialization ---
 # This MUST come before any @app decorators
@@ -76,12 +84,48 @@ async def startup_event():
     """
     This function is called when the FastAPI application starts.
     """
-    # Initialize database with a temporary connection
-    with get_db_connection() as conn:
-        setup_database(conn)
-        setup_share_database(conn)
+    print("🚀 Starting MacDonald History Bot API...")
 
-@app.on_event("shutdown")
+    try:
+        # Initialize database with a temporary connection
+        with get_db_connection() as conn:
+            setup_database(conn)
+            setup_share_database(conn)
+        print("✅ Database initialization completed")
+
+        # Validate external dependencies
+        print("🔍 Validating external dependencies...")
+
+        # Test ChromaDB collection access
+        try:
+            collection.count()  # Simple test
+            print("✅ ChromaDB collection accessible")
+        except Exception as e:
+            print(f"❌ ChromaDB validation failed: {e}")
+            raise
+
+        # Test embedding model
+        try:
+            embedder.encode("test")  # Simple test
+            print("✅ Embedding model loaded and functional")
+        except Exception as e:
+            print(f"❌ Embedding model validation failed: {e}")
+            raise
+
+        # Test OpenRouter connectivity (optional - don't want to waste API calls)
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        if len(openrouter_key) < 20:  # Basic sanity check
+            raise ValueError("OPENROUTER_API_KEY appears to be invalid (too short)")
+        print("✅ OpenRouter API key format validation passed")
+
+        print("🎉 Application startup completed successfully")
+
+    except Exception as e:
+        print(f"💥 Startup failed: {e}")
+        print("❌ Application will not start due to validation errors")
+        raise  # This will prevent the app from starting
+
+@app.on_event("shutdown")  # Keep this exactly as you have it!
 def shutdown_event():
     """
     Clean up any open connections.
@@ -191,14 +235,58 @@ chroma_client = chromadb.PersistentClient(path="./chroma_store")
 collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
 
-# Add CORS middleware with configurable frontend URL
+# Production security middleware (only in production)
+if ENVIRONMENT == "production":
+    # Enforce HTTPS in production
+    app.add_middleware(HTTPSRedirectMiddleware)
+
+    # Validate trusted hosts
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=ALLOWED_HOSTS
+    )
+
+# Enhanced CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[FRONTEND_URL],  # Now configurable via environment variable
+    allow_origins=[FRONTEND_URL],  # Still configurable via environment variable
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    allow_headers=[  # More specific headers instead of "*"
+        "Content-Type",
+        "Authorization",
+        "Accept",
+        "Origin",
+        "User-Agent",
+        "DNT",
+        "Cache-Control",
+        "X-Mx-ReqToken",
+        "Keep-Alive",
+        "X-Requested-With",
+        "If-Modified-Since"
+    ],
+    expose_headers=["Content-Length", "Content-Type"],
+    max_age=86400,  # Cache preflight requests for 24 hours
 )
+
+# Add security headers middleware
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+
+    # Add security headers
+    if ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # Always add these headers
+    response.headers["X-API-Version"] = "1.0.0"
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+    return response
 
 class QuestionRequest(BaseModel):
     question: str = Field(
