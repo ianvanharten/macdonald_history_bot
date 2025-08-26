@@ -42,7 +42,34 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # --- FastAPI App Initialization ---
 # This MUST come before any @app decorators
-app = FastAPI()
+app = FastAPI(
+    title="MacDonald History Bot API",
+    description="Chat with Sir John A. Macdonald about Canadian history",
+    version="1.0.0",
+    # Security: Limit request body size to prevent DoS attacks
+    # 16KB is generous for text-based API (much larger than longest question)
+    openapi_url="/openapi.json" if ENVIRONMENT != "production" else None,  # Hide docs in production
+)
+
+# Add request size middleware
+@app.middleware("http")
+async def limit_request_size(request: Request, call_next):
+    """
+    Limit request body size to prevent memory exhaustion attacks.
+    """
+    MAX_REQUEST_SIZE = 16 * 1024  # 16KB - generous for text requests
+
+    # Check Content-Length header
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_REQUEST_SIZE:
+        return JSONResponse(
+            status_code=413,
+            content={"error": "Request too large. Maximum size is 16KB."}
+        )
+
+    # For requests without Content-Length, we'll let FastAPI's natural limits handle it
+    response = await call_next(request)
+    return response
 
 # --- Database Connection Management ---
 DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')

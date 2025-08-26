@@ -21,3 +21,5 @@ Implementation: Replace basic requests with robust httpx + tenacity:
 Dependencies: pip install httpx tenacity
 Use cases: Handle network issues, API rate limits, server errors gracefully
 
+Add this to the server startup
+uvicorn main:app --host 0.0.0.0 --port 8000 --limit-max-requests 1000 --limit-request-field_size 8190
