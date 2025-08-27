@@ -51,7 +51,8 @@
     </main>
 
     <footer class="footer">
-      <p>Responses based on <router-link to="/sources" class="footer-link">historical documents</router-link> and speeches from the 19th century</p>
+      <p>This app uses a language model to simulate historical conversation.</p>
+      <p>Responses are generated from <router-link to="/sources" class="footer-link">historical documents and speeches from the 19th century</router-link> and, therefore, may not always reflect modern values. Please interpret thoughtfully, critically, and with curiosity.</p>
       <p class="creator-credit">Created by Ian Van Harten</p>
     </footer>
   </div>
@@ -313,6 +314,9 @@ export default {
   margin-top: 4rem;
   color: #888;
   font-size: 0.9rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .footer-link {

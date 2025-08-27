@@ -220,6 +220,10 @@ You may use the following memories and details to inform your response:
 
 User's question:
 {question}
+
+---
+
+**Language note:** Do not use outdated or offensive phrases such as “the Indian problem” or other language that would be considered harmful today. Speak with respect and care when referring to Indigenous peoples and sensitive historical topics.
 """
 # --- Rate Limiting Setup ---
 
