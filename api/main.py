@@ -23,9 +23,6 @@ from usage_logger import setup_database, log_request
 # Import the new share handler
 from share_handler import setup_share_database, create_share_link, get_shared_link
 
-import threading
-from contextlib import contextmanager
-
 # Add these imports after your existing FastAPI imports (around line 8)
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
@@ -74,36 +71,23 @@ async def limit_request_size(request: Request, call_next):
 # --- Database Connection Management ---
 DB_PATH = os.path.join(os.path.dirname(__file__), 'monitoring.db')
 
-# Thread-local storage for connections
-db_local = threading.local()
-
-@contextmanager
-def get_db_connection():
-    """
-    Get a thread-safe database connection.
-    Each thread gets its own connection to avoid race conditions.
-    """
-    if not hasattr(db_local, 'connection') or db_local.connection is None:
-        db_local.connection = sqlite3.connect(DB_PATH)
-        # Enable WAL mode for better concurrency
-        db_local.connection.execute("PRAGMA journal_mode=WAL")
-        db_local.connection.commit()
-
-    try:
-        yield db_local.connection
-    except Exception:
-        # Rollback on error
-        db_local.connection.rollback()
-        raise
-    finally:
-        # Connection stays open for reuse by this thread
-        pass
-
-# Dependency function for FastAPI
 def get_database():
-    """FastAPI dependency to get database connection."""
-    with get_db_connection() as conn:
+    """
+    FastAPI dependency: open a fresh SQLite connection per request and close it afterwards.
+    This avoids cross-thread reuse and reduces locking issues.
+    """
+    conn = sqlite3.connect(
+        DB_PATH,
+        check_same_thread=False,   # allow usage in async/threaded contexts
+        timeout=30
+    )
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA synchronous=NORMAL;")
+        conn.execute("PRAGMA busy_timeout=30000;")
         yield conn
+    finally:
+        conn.close()
 
 # --- Application Startup Event ---
 @app.on_event("startup")
@@ -114,8 +98,11 @@ async def startup_event():
     print("🚀 Starting MacDonald History Bot API...")
 
     try:
-        # Initialize database with a temporary connection
-        with get_db_connection() as conn:
+        # Initialize database with a short-lived connection
+        with sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=30000;")
             setup_database(conn)
             setup_share_database(conn)
         print("✅ Database initialization completed")
@@ -152,13 +139,7 @@ async def startup_event():
         print("❌ Application will not start due to validation errors")
         raise  # This will prevent the app from starting
 
-@app.on_event("shutdown")  # Keep this exactly as you have it!
-def shutdown_event():
-    """
-    Clean up any open connections.
-    """
-    if hasattr(db_local, 'connection') and db_local.connection:
-        db_local.connection.close()
+# Remove the shutdown event entirely - no longer needed
 
 
 def clean_duplicated_text(text):
