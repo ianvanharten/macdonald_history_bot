@@ -81,25 +81,11 @@ export default {
     const scrollToResponse = () => {
       nextTick(() => {
         setTimeout(() => {
-          // For the third question, scroll to the last conversation pair instead
-          if (!activeInputSection.value && conversationHistory.length === 3) {
-            // Find the last conversation pair element
-            const conversationPairs = document.querySelectorAll('.conversation-pair')
-            const lastPair = conversationPairs[conversationPairs.length - 1]
-            if (lastPair) {
-              const rect = lastPair.getBoundingClientRect()
-              const scrollTarget = window.pageYOffset + rect.top - 50 // 50px padding from top
-
-              window.scrollTo({
-                top: scrollTarget,
-                behavior: 'smooth'
-              })
-            }
-          } else if (activeInputSection.value) {
-            // Original logic for first two questions
-            const inputRect = activeInputSection.value.getBoundingClientRect()
-            const scrollTarget = window.pageYOffset + inputRect.bottom + 20 // 20px padding
-
+          const responseSections = document.querySelectorAll('.response-section')
+          const target = responseSections[responseSections.length - 1]
+          if (target) {
+            const rect = target.getBoundingClientRect()
+            const scrollTarget = window.pageYOffset + rect.top - 50
             window.scrollTo({
               top: scrollTarget,
               behavior: 'smooth'
