@@ -243,23 +243,30 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Load embedding model (same one used for indexing)
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-# Load ChromaDB collection
-try:
-    chroma_client = chromadb.PersistentClient(path="./chroma_store")
-    collection = chroma_client.get_or_create_collection("macdonald_speeches")
+# Load ChromaDB collection lazily
+chroma_client = None
+collection = None
 
-    # Check if collection exists and has data
-    if collection.count() == 0:
-        print("ChromaDB is empty, rebuilding from source files...")
-        from setup_chroma import setup_chroma_db
-        setup_chroma_db()
-        # Reload the collection after setup
-        collection = chroma_client.get_or_create_collection("macdonald_speeches")
+def get_collection():
+    global chroma_client, collection
+    if collection is None:
+        try:
+            chroma_client = chromadb.PersistentClient(path="./chroma_store")
+            collection = chroma_client.get_or_create_collection("macdonald_speeches")
 
-    print(f"✅ ChromaDB loaded successfully with {collection.count()} documents")
-except Exception as e:
-    print(f"❌ ChromaDB failed to load: {e}")
-    collection = None
+            # Check if collection exists and has data
+            if collection.count() == 0:
+                print("ChromaDB is empty, rebuilding from source files...")
+                from setup_chroma import setup_chroma_db
+                setup_chroma_db()
+                collection = chroma_client.get_or_create_collection("macdonald_speeches")
+
+            print(f"✅ ChromaDB loaded with {collection.count()} documents")
+        except Exception as e:
+            print(f"❌ ChromaDB failed: {e}")
+            collection = None
+
+    return collection
 
 
 # Production security middleware (only in production)
@@ -374,7 +381,10 @@ def ask_macdonald(
     question_embedding = embedder.encode(question_request.question).tolist()
 
     # Increase results to get more historical context
-    results = collection.query(
+    coll = get_collection()
+    if coll is None:
+        return {"error": "Vector database not available"}
+    results = coll.query(
         query_embeddings=[question_embedding],
         n_results=5  # Increased from 3 to 5 for more context
     )
