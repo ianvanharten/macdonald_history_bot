@@ -283,8 +283,7 @@ if ENVIRONMENT == "production":
 # Enhanced CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=[FRONTEND_URL],  # Still configurable via environment variable
-    allow_origins=['*'],  # Still configurable via environment variable
+    allow_origins=[FRONTEND_URL],  # Still configurable via environment variable
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=[  # More specific headers instead of "*"
