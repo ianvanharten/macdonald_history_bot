@@ -240,7 +240,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Load embedding model (same one used for indexing)
-embedder = SentenceTransformer("paraphrase-MiniLM-L3-v2")
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Load ChromaDB collection
 chroma_client = chromadb.PersistentClient(path="./chroma_store")
