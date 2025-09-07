@@ -15,7 +15,7 @@ api/.env
 api/venv/
 
 # ChromaDB storage
-# api/chroma_store/
+api/chroma_store/
 
 # OS files
 .DS_Store

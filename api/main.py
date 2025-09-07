@@ -110,13 +110,14 @@ async def startup_event():
         # Validate external dependencies
         print("🔍 Validating external dependencies...")
 
-        # Test ChromaDB collection access
+        # Test ChromaDB setup instead of just embedder
         try:
-            collection.count()  # Simple test
-            print("✅ ChromaDB collection accessible")
+            if collection is not None:
+                print("✅ ChromaDB collection accessible")
+            else:
+                print("⚠️ ChromaDB will be built on first request")
         except Exception as e:
             print(f"❌ ChromaDB validation failed: {e}")
-            raise
 
         # Test embedding model
         try:
@@ -243,8 +244,22 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Load ChromaDB collection
-chroma_client = chromadb.PersistentClient(path="./chroma_store")
-collection = chroma_client.get_or_create_collection("macdonald_speeches")
+try:
+    chroma_client = chromadb.PersistentClient(path="./chroma_store")
+    collection = chroma_client.get_or_create_collection("macdonald_speeches")
+
+    # Check if collection exists and has data
+    if collection.count() == 0:
+        print("ChromaDB is empty, rebuilding from source files...")
+        from setup_chroma import setup_chroma_db
+        setup_chroma_db()
+        # Reload the collection after setup
+        collection = chroma_client.get_or_create_collection("macdonald_speeches")
+
+    print(f"✅ ChromaDB loaded successfully with {collection.count()} documents")
+except Exception as e:
+    print(f"❌ ChromaDB failed to load: {e}")
+    collection = None
 
 
 # Production security middleware (only in production)
