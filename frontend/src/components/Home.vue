@@ -53,7 +53,8 @@
     <footer class="footer">
       <p>This app uses a language model to simulate historical conversation.</p>
       <p>Responses are generated from <router-link to="/sources" class="footer-link">historical documents and speeches from the 19th century</router-link> and, therefore, may not always reflect modern values. Please interpret thoughtfully, critically, and with curiosity.</p>
-      <p class="creator-credit">Created by Ian Van Harten</p>
+      <br />
+      <p class="creator-credit"><a href="https://longformnorth.com" class="footer-link">Longform North</a></p>
     </footer>
   </div>
 </template>
@@ -297,9 +298,8 @@ export default {
 .footer {
   text-align: center;
   padding: 4rem 0;
-  margin-top: 4rem;
   color: #888;
-  font-size: 0.9rem;
+  font-size: 1rem;
   max-width: 700px;
   margin-left: auto;
   margin-right: auto;
@@ -317,7 +317,7 @@ export default {
 
 .creator-credit {
   margin-top: 0.5rem;
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: #999;
 }
 
