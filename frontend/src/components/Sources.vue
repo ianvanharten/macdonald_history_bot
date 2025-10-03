@@ -3,7 +3,7 @@
     <header class="header">
       <h1 class="title">Historical Sources</h1>
       <p class="subtitle">
-        Sir John A. MacDonald's responses are grounded in authentic historical documents and speeches from the 19th century.
+        Sir John A. Macdonald's responses are grounded in authentic historical documents and speeches from the 19th century.
         This page provides details about the primary sources used to create his knowledge base.
       </p>
     </header>
@@ -13,7 +13,7 @@
         <div class="source-item">
           <h2 class="source-title">House of Commons Debate Transcripts (1867 - 1891)</h2>
           <p class="source-description">
-            This is the principle resource for the app. Everything John A. MacDonald ever said in parliament is available in the transcripts for the debates in the House of Commons. All the debates from the Canadian House of Commons going back to the first parliament in 1867 are transcribed and available as pdfs. I scraped them all pulling only the speeches given by John A. MacDonald.
+            This is the principle resource for the app. Everything John A. Macdonald ever said in parliament is available in the transcripts for the debates in the House of Commons. All the debates from the Canadian House of Commons going back to the first parliament in 1867 are transcribed and available as pdfs. I scraped them all pulling only the speeches given by John A. Macdonald.
           </p>
           <div class="source-links">
             <a href="https://parl.canadiana.ca/browse" target="_blank" rel="noopener noreferrer" class="source-link">
@@ -23,13 +23,13 @@
         </div>
 
         <div class="source-item">
-          <h2 class="source-title">Correspondence of Sir John A. MacDonald, edited by Sir Joseph Pope (1921)</h2>
+          <h2 class="source-title">Correspondence of Sir John A. Macdonald, edited by Sir Joseph Pope (1921)</h2>
           <p class="source-description">
             A collection of his letters compiled by his literary executor and available online as a pdf.
           </p>
           <div class="source-links">
             <a href="https://primarydocuments.ca/wp-content/uploads/2019/03/PopeMacdonaldCorrespondence.pdf" target="_blank" rel="noopener noreferrer" class="source-link">
-              MacDonald Correspondence PDF
+              Macdonald Correspondence PDF
             </a>
           </div>
         </div>
@@ -37,11 +37,11 @@
         <div class="source-item">
           <h2 class="source-title">The Canadian Encyclopedia</h2>
           <p class="source-description">
-            The Canadian Encyclopedia's principle article on Sir John A. MacDonald.
+            The Canadian Encyclopedia's principle article on Sir John A. Macdonald.
           </p>
           <div class="source-links">
             <a href="https://www.thecanadianencyclopedia.ca/en/article/sir-john-alexander-macdonald" target="_blank" rel="noopener noreferrer" class="source-link">
-              Sir John Alexander MacDonald
+              Sir John Alexander Macdonald
             </a>
           </div>
         </div>
@@ -49,14 +49,14 @@
         <div class="source-item">
           <h2 class="source-title">The Dictionary of Canadian Biography</h2>
           <p class="source-description">
-            I used a few resources from here. They have a full biography of John A. MacDonald plus a series of thematic articles looking at his life from the perspective of those themes. Finally, they have a section on Canadian Confederation which I used as well.
+            I used a few resources from here. They have a full biography of John A. Macdonald plus a series of thematic articles looking at his life from the perspective of those themes. Finally, they have a section on Canadian Confederation which I used as well.
           </p>
           <div class="source-links">
             <a href="https://www.biographi.ca/en/bio/macdonald_john_alexander_12E.html" target="_blank" rel="noopener noreferrer" class="source-link">
-              John A. MacDonald Biography
+              John A. Macdonald Biography
             </a>
             <a href="https://www.biographi.ca/en/theme_macdonald.html?p=1" target="_blank" rel="noopener noreferrer" class="source-link">
-              MacDonald Thematic Articles
+              Macdonald Thematic Articles
             </a>
             <a href="https://www.biographi.ca/en/theme_confederation.html" target="_blank" rel="noopener noreferrer" class="source-link">
               Canadian Confederation
@@ -65,9 +65,9 @@
         </div>
 
         <div class="source-item">
-          <h2 class="source-title">John A. MacDonald: The Indispensable Politician by Alastair Gillespie</h2>
+          <h2 class="source-title">John A. Macdonald: The Indispensable Politician by Alastair Gillespie</h2>
           <p class="source-description">
-            A paper published for the MacDonald Laurier Institute and available online as a pdf.
+            A paper published for the Macdonald Laurier Institute and available online as a pdf.
           </p>
           <div class="source-links">
             <a href="https://macdonaldlaurier.ca/files/pdf/MLIConfederationSeries_MacdonaldPaperF_Web.pdf" target="_blank" rel="noopener noreferrer" class="source-link">
@@ -77,13 +77,13 @@
         </div>
 
         <div class="source-item">
-          <h2 class="source-title">Anecdotal Life of Sir John A. MacDonald by Emerson Bristol Biggar (1891)</h2>
+          <h2 class="source-title">Anecdotal Life of Sir John A. Macdonald by Emerson Bristol Biggar (1891)</h2>
           <p class="source-description">
             An old book on a fairly old-looking website, but available in full online.
           </p>
           <div class="source-links">
             <a href="https://www.johnamacdonald.org/" target="_blank" rel="noopener noreferrer" class="source-link">
-              Anecdotal Life of Sir John A. MacDonald
+              Anecdotal Life of Sir John A. Macdonald
             </a>
           </div>
         </div>

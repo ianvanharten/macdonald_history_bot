@@ -4,7 +4,7 @@
       <div class="nav-container">
         <div class="nav-brand">
           <router-link to="/" class="brand-link">
-            <span class="brand-text">Ask Sir John A. MacDonald</span>
+            <span class="brand-text">Ask Sir John A. Macdonald</span>
           </router-link>
         </div>
         <div class="nav-links">

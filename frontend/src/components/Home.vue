@@ -1,11 +1,11 @@
 <template>
   <div class="home-page">
     <header class="header">
-      <h1 class="title">Ask Sir John A. MacDonald</h1>
+      <h1 class="title">Ask Sir John A. Macdonald</h1>
       <div class="header-image">
         <img src="/john-a-comic.png" alt="Sir John A. Macdonald" class="portrait" />
       </div>
-      <p class="subtitle">Step into history and have a conversation with Canada's first Prime Minister. Ask Sir John A. MacDonald about Confederation, his political career, or the challenges of building a new nation. His responses are grounded in authentic historical documents and speeches from the 19th century.</p>
+      <p class="subtitle">Step into history and have a conversation with Canada's first Prime Minister. Ask Sir John A. Macdonald about Confederation, his political career, or the challenges of building a new nation. His responses are grounded in authentic historical documents and speeches from the 19th century.</p>
     </header>
 
     <main class="main-content">
